@@ -206,10 +206,10 @@ public class Utils {
 	}
 	
 	public boolean checkInd(String ind, int n) {
-		Pattern pattern = Pattern.compile("\\((\\d+ ){" + (n-1) +"}\\d+\\)");
+		Pattern pattern = Pattern.compile("\\((\\d+ )+\\d+\\)");
 		
 		while(pattern.matcher(ind).find()) {
-			ind = ind.replaceAll("\\((\\d+ ){" + (n-1) +"}\\d+\\)", "0");
+			ind = ind.replaceAll("\\((\\d+ )+\\d+\\)", "0");
 		}
 		
 		if(ind.equals("0;")) {
