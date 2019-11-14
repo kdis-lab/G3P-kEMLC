@@ -1,3 +1,5 @@
+package gpemlc;
+
 import java.util.Random;
 
 public class Main {
@@ -18,7 +20,7 @@ public class Main {
 	static int nChilds = 6;
 	
 	public static void main(String[] args) {
-		int nMax = 120;	
+		int nMax = 10;	
 		Utils utils = new Utils();
 		
 		IndividualCreator creator = new IndividualCreator();
