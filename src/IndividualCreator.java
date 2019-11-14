@@ -12,6 +12,7 @@ public class IndividualCreator {
 	 * Random numbers generator
 	 */
 	static Random rand = new Random();
+
 	
 	/**
 	 * Create an individual of given maximum depth
@@ -20,20 +21,25 @@ public class IndividualCreator {
 	 * @param maxDepth Maximum depth of the tree
 	 * @return Individual as String
 	 */
-	public String create(int nMax, int maxDepth) {
+	public String create(int nMax, int maxDepth, int nChilds) {
 		String ind = "S;";
 		int pos = 0;
 		int currDepth = 0;
+		String child = "(";
+		for(int i=0; i<nChilds; i++) {
+			child += "C ";
+		}
+		child = child.substring(0, child.length()-1) + ")";
 		
 		do {
 			switch (ind.charAt(pos)) {
 			case 'S':
-				ind = replace(ind, pos, "(C C C)");
+				ind = replace(ind, pos, child);
 				break;
 			case 'C':
 				if(currDepth < maxDepth) {
 					if(rand.nextBoolean()) {
-						ind = replace(ind, pos, "(C C C)");
+						ind = replace(ind, pos, child);
 					}
 					else {
 						ind = replace(ind, pos, String.valueOf(rand.nextInt(nMax)));

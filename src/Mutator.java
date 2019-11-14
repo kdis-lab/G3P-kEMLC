@@ -20,6 +20,11 @@ public class Mutator {
 	int nMax;
 	
 	/**
+	 * Number of childs of each node
+	 */
+	int nChilds;
+	
+	/**
 	 * Utils object for working with GP individuals
 	 */
 	Utils utils = new Utils();
@@ -52,6 +57,14 @@ public class Mutator {
 	public void setnMax(int nMax) {
 		this.nMax = nMax;
 	}
+	
+	/**
+	 * Setter for the number of children at each node
+	 * @param nChilds
+	 */
+	public void setnChilds(int nChilds) {
+		this.nChilds = nChilds;
+	}
 
 	/**
 	 * Cross individuals and obtains two new sons.
@@ -73,7 +86,7 @@ public class Mutator {
 		
 		int allowedDepth = maxTreeDepth - utils.calculateNodeDepth(ind, subTree[0]);
 		IndividualCreator creator = new IndividualCreator();
-		String newSubtree = creator.create(nMax, allowedDepth);
+		String newSubtree = creator.create(nMax, allowedDepth, nChilds);
 		
 		//newSubtree.length()-1 is to remove the ";"
 		return ind.substring(0, subTree[0]) + newSubtree.substring(0, newSubtree.length()-1) + ind.substring(subTree[1], ind.length());
