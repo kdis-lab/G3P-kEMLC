@@ -29,12 +29,12 @@ public class Mutator extends StringTreeMutator {
 	/**
 	 * Maximum value for leafs
 	 */
-	int nMax = 50;
+	int nMax;
 	
 	/**
 	 * Number of childs of each node
 	 */
-	int nChilds = 3;
+	int nChilds;
 	
 	/**
 	 * Utils object for working with GP individuals
@@ -44,7 +44,7 @@ public class Mutator extends StringTreeMutator {
 	/**
 	 * Maximum allowed depth for the tree
 	 */
-	int maxTreeDepth = 3;
+	int maxTreeDepth;
 	
 	
 	/**

@@ -18,7 +18,7 @@ public class Crossover extends StringTreeRecombinator {
 	/**
 	 * Maximum allowed depth for the tree
 	 */
-	int maxTreeDepth = 3;
+	int maxTreeDepth;
 	
 	/**
 	 * Utils object for working with GP individuals

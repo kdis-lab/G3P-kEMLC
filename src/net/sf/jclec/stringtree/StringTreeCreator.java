@@ -1,11 +1,9 @@
 package net.sf.jclec.stringtree;
 
-import gpemlc.Utils;
+import gpemlc.IndividualCreator;
 import net.sf.jclec.ISpecies;
 
 import net.sf.jclec.base.AbstractCreator;
-import net.sf.jclec.binarray.BinArrayCreator;
-import net.sf.jclec.binarray.BinArraySpecies;
 
 /**
  * Creation of BinArrayIndividual (and subclasses).
@@ -40,17 +38,17 @@ public class StringTreeCreator extends AbstractCreator
 	/**
 	 * Max number of children at each node
 	 */
-	int maxChildren = 3;
+	int maxChildren;
 	
 	/**
 	 * Max depth of the tree
 	 */
-	int maxDepth = 3 ;
+	int maxDepth;
 	
 	/**
 	 * Max value for the leaves
 	 */
-	int nMax = 50;
+	int nMax;
 	
 
 	/////////////////////////////////////////////////////////////////
@@ -65,6 +63,19 @@ public class StringTreeCreator extends AbstractCreator
 	/////////////////////////////////////////////////////////////////
 	// ----------------------------------------------- Public methods
 	/////////////////////////////////////////////////////////////////
+	
+	public void setMaxChildren(int maxChildren) {
+		this.maxChildren = maxChildren;
+	}
+	
+	public void setMaxDepth(int maxDepth) {
+		this.maxDepth = maxDepth;
+	}
+	
+	public void setnMax(int nMax) {
+		this.nMax = nMax;
+	}
+	
 	
 	// java.lang.Object methods
 	
@@ -139,48 +150,10 @@ public class StringTreeCreator extends AbstractCreator
 	/**
 	 * Create a byte [] genotype, filling it randomly
 	 */
-	
 	private final String createGenotype()
 	{
-		String ind = "S;";
-		int pos = 0;
-		int currDepth = 0;
-				
-		do {
-			switch (ind.charAt(pos)) {
-			case 'S':
-				ind = replace(ind, pos, childRandomSize(maxChildren));
-				break;
-			case 'C':
-				if(currDepth < maxDepth) {
-					if(randgen.coin()) {
-						ind = replace(ind, pos, childRandomSize(maxChildren));
-					}
-					else {
-						ind = replace(ind, pos, String.valueOf(randgen.choose(0, nMax)));
-					}
-				}
-				else {
-					ind = replace(ind, pos, String.valueOf(randgen.choose(0, nMax)));
-				}				
-				break;
-			
-			case '(':
-				currDepth++;
-				pos++;
-				break;
-			case ')':
-				currDepth--;
-				pos++;
-				break;
-				
-			default:
-				pos++;
-				break;
-			}
-		}while(ind.charAt(pos) != ';');
-		
-		return ind;
+		IndividualCreator creator = new IndividualCreator();
+		return creator.create(nMax, maxDepth, maxChildren);
 	}
 	
 	/**

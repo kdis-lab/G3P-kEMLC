@@ -1,5 +1,7 @@
 package gpemlc;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -220,6 +222,121 @@ public class Utils {
 		else {
 			return false;
 		}
+	}
+	
+	public boolean isLeaf(String node) {
+		return node.matches("^\\d+$");
+	}
+	
+	public boolean isNode(String node) {
+		return node.matches("^\\(.*\\)(;)?$");
+	}
+	
+	public boolean reduce(String ind) {
+		Pattern pattern = Pattern.compile("\\((_?\\d+ )+_?\\d+\\)");
+		ArrayList<Integer> list = new ArrayList<Integer>();
+		Matcher m = pattern.matcher(ind);
+		int count = 0;
+		
+		while(m.find()) {
+			System.out.println("ind: " + ind);
+			System.out.println(m.group(0));
+			System.out.println("sub: " + ind.substring(m.start(), m.end()));
+			
+			int sum = sum(m.group(0), list);
+			list.add(sum);
+			ind = ind.substring(0, m.start()) + "_" + count + ind.substring(m.end(), ind.length());
+			count++;
+			System.out.println("ind: " + ind);
+			System.out.println();
+			m = pattern.matcher(ind);
+		}
+		
+		if(ind.equals("0;")) {
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
+	
+	private int sum(String s, ArrayList<Integer> list) {
+		int total = 0;
+		Pattern pattern = Pattern.compile("\\d+");
+		Matcher m;
+		int n;
+		
+		String [] pieces = s.split(" ");
+		for(String piece : pieces) {
+			System.out.println("piece: " + piece);
+			m = pattern.matcher(piece);
+			m.find();
+			n = Integer.parseInt(m.group(0));
+			System.out.println("n: " + n);
+			if(piece.contains("_")) {
+				total += list.get(n);
+			}
+			else {
+				total += n;
+			}
+		}
+		
+		System.out.println("total: " + total);
+		return total;
+	}
+	
+	
+	
+	
+	
+	
+	public String[] getChildren(String ind) {
+		String[] children;
+		
+		if(!isNode(ind)) {
+			children = new String[1];
+			children[0] = ind;
+		}
+		else {
+			ArrayList<String> childrenList = new ArrayList<>();
+			Utils utils = new Utils();
+			int parenthesis = utils.countParenthesis(ind);
+			if(parenthesis == 1) {
+				children = ind.split(" ");
+				children[0].replace("(", "");
+				children[children.length-1].replace(")", "");
+				children[children.length-1].replace(";", "");
+			}
+			else {
+				int start=1, end=-1, level=0;
+				for(int pos=1; pos<ind.length()-1; pos++) { //not consider first and last parenthesis
+					switch (ind.charAt(pos)) {
+					case '(':
+						if(level == 0) {
+							start = pos;
+						}
+						level++;
+						break;
+					case ')':
+						level--;
+						if(level == 0) {
+							end = pos;
+							childrenList.add(ind.substring(start, end+1));
+						}
+					default:
+						break;
+					}
+				}
+				
+				children = new String[childrenList.size()];
+				for(int i=0; i<childrenList.size(); i++) {
+					children[i] = childrenList.get(i);
+				}
+			}
+		}
+
+		System.out.println("return: " + Arrays.toString(children));
+		return children;
 	}
 	
 }
