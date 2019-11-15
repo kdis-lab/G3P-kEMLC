@@ -1,5 +1,7 @@
 package gpemlc;
 
+import java.util.Hashtable;
+
 import org.apache.commons.configuration.Configuration;
 
 import gpemlc.mutator.Mutator;
@@ -26,12 +28,12 @@ public class Alg extends SGE {
 	/**
 	 * Max number of children at each node
 	 */
-	int maxChildren = 2;
+	int maxChildren = 3;
 	
 	/**
 	 * Max depth of the tree
 	 */
-	int maxDepth = 4;
+	int maxDepth = 2;
 	
 	/**
 	 * Full training dataset
@@ -63,9 +65,13 @@ public class Alg extends SGE {
 	 */
 	MultiLabelLearner[] classifiers;
 	
+	 Hashtable<String, Prediction> table;
+	
 	@Override
 	public void configure(Configuration configuration) {
 		super.configure(configuration);
+		
+		table = new Hashtable<String, Prediction>();
 		
 		String datasetTrainFileName = configuration.getString("dataset.train-dataset");
 		String datasetTestFileName = configuration.getString("dataset.test-dataset");
@@ -88,7 +94,22 @@ public class Alg extends SGE {
 				trainData[p] = MulanUtils.sampleData(fullTrainData, sampleRatio, randgen);
 				classifiers[p] = new LabelPowerset2(new J48());
 				((LabelPowerset2)classifiers[p]).setSeed(1);
-				classifiers[p].build(trainData[p]);				
+				classifiers[p].build(trainData[p]);
+				
+				Prediction pred = new Prediction(fullTrainData.getNumInstances(), fullTrainData.getNumLabels());
+				for(int i=0; i<fullTrainData.getNumInstances(); i++) {
+					boolean[] bip = classifiers[p].makePrediction(fullTrainData.getDataSet().get(i)).getBipartition();
+					for(int j=0; j<fullTrainData.getNumLabels(); j++) {
+						if(bip[j]) {
+							pred.bip[i][j] = 1;
+						}
+						else {
+							pred.bip[i][j] = 0;
+						}
+					}
+				}
+				
+				table.put(String.valueOf(p), pred);
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -107,6 +128,7 @@ public class Alg extends SGE {
 		
 		((Evaluator)evaluator).setClassifiers(classifiers);
 		((Evaluator)evaluator).setFullTrainData(fullTrainData);
+		((Evaluator)evaluator).setTable(table);
 	}
 	
 	@Override

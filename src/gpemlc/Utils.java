@@ -232,31 +232,18 @@ public class Utils {
 		return node.matches("^\\(.*\\)(;)?$");
 	}
 	
-	public boolean reduce(String ind) {
+	public void reduce(String ind) {
 		Pattern pattern = Pattern.compile("\\((_?\\d+ )+_?\\d+\\)");
 		ArrayList<Integer> list = new ArrayList<Integer>();
 		Matcher m = pattern.matcher(ind);
-		int count = 0;
+		int count = 0, sum;
 		
 		while(m.find()) {
-			System.out.println("ind: " + ind);
-			System.out.println(m.group(0));
-			System.out.println("sub: " + ind.substring(m.start(), m.end()));
-			
-			int sum = sum(m.group(0), list);
+			sum = sum(m.group(0), list);
 			list.add(sum);
 			ind = ind.substring(0, m.start()) + "_" + count + ind.substring(m.end(), ind.length());
 			count++;
-			System.out.println("ind: " + ind);
-			System.out.println();
 			m = pattern.matcher(ind);
-		}
-		
-		if(ind.equals("0;")) {
-			return true;
-		}
-		else {
-			return false;
 		}
 	}
 	
@@ -284,59 +271,6 @@ public class Utils {
 		System.out.println("total: " + total);
 		return total;
 	}
-	
-	
-	
-	
-	
-	
-	public String[] getChildren(String ind) {
-		String[] children;
-		
-		if(!isNode(ind)) {
-			children = new String[1];
-			children[0] = ind;
-		}
-		else {
-			ArrayList<String> childrenList = new ArrayList<>();
-			Utils utils = new Utils();
-			int parenthesis = utils.countParenthesis(ind);
-			if(parenthesis == 1) {
-				children = ind.split(" ");
-				children[0].replace("(", "");
-				children[children.length-1].replace(")", "");
-				children[children.length-1].replace(";", "");
-			}
-			else {
-				int start=1, end=-1, level=0;
-				for(int pos=1; pos<ind.length()-1; pos++) { //not consider first and last parenthesis
-					switch (ind.charAt(pos)) {
-					case '(':
-						if(level == 0) {
-							start = pos;
-						}
-						level++;
-						break;
-					case ')':
-						level--;
-						if(level == 0) {
-							end = pos;
-							childrenList.add(ind.substring(start, end+1));
-						}
-					default:
-						break;
-					}
-				}
-				
-				children = new String[childrenList.size()];
-				for(int i=0; i<childrenList.size(); i++) {
-					children[i] = childrenList.get(i);
-				}
-			}
-		}
 
-		System.out.println("return: " + Arrays.toString(children));
-		return children;
-	}
 	
 }

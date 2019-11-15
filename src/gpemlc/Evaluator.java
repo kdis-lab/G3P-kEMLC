@@ -1,7 +1,11 @@
 package gpemlc;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Hashtable;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import mulan.classifier.MultiLabelLearner;
 import mulan.classifier.MultiLabelOutput;
@@ -50,6 +54,8 @@ public class Evaluator extends AbstractEvaluator {
 	
 	Utils utils = new Utils();
 	
+	Hashtable<String, Prediction> table = new Hashtable<String, Prediction>();
+	
 	/**
 	 * Constructor
 	 */
@@ -72,6 +78,9 @@ public class Evaluator extends AbstractEvaluator {
 		this.classifiers = classifiers;
 	}
 	
+	public void setTable(Hashtable<String, Prediction> table) {
+		this.table = table;
+	}
 	
 	@Override
 	protected void evaluate(IIndividual ind) 
@@ -82,64 +91,106 @@ public class Evaluator extends AbstractEvaluator {
 		Utils utils = new Utils();
 		double fitness = utils.countLeaves(gen);
 		
-		System.out.println("gen: " + gen);
-		System.out.println("child: " + Arrays.toString(utils.getChildren(gen)));
-		combine(utils.getChildren(gen));
+//		System.out.println("gen: " + gen);
+		Prediction pred = reduce(gen);
+		
+		fitness = eval(pred, fullTrainData);
+//		System.out.println("fitness: " + fitness);
+//		System.exit(1);
 		
 		//Set individual fitness
 		ind.setFitness(new SimpleValueFitness(fitness));
 
 	}
+	
+	protected double eval(Prediction pred, MultiLabelInstances mlData) {
+		int[] labelIndices = mlData.getLabelIndices();
+		byte [] ground = new byte[mlData.getNumLabels()];
+		
+		double exF = 0.0;
+		
+		for(int i=0; i<mlData.getNumInstances(); i++) {
+			for(int j=0; j<mlData.getNumLabels(); j++) {
+				ground[j] = (byte) mlData.getDataSet().get(i).value(labelIndices[j]);
+			}
+			
+			exF += evalInstance(pred.bip[i], ground);
+			
+		}
+		
+		return exF/mlData.getNumInstances();
+	}
+	
+	protected double evalInstance(byte[] pred, byte[] ground) {
+		double num=0, den=0;
+		
+		for(int i=0; i<pred.length; i++) {
+			if(pred[i] > 0) {
+				den++;
+			}
+			if(ground[i] > 0) {
+				den++;
+			}
+			if(pred[i]>0 && ground[i]>0) {
+				num += 2;
+			}
+		}
+		
+		return num/den;
+	}
+	
 
-	protected byte[][] combine(String[] nodes){
-		byte[][] preds = new byte[fullTrainData.getNumInstances()][fullTrainData.getNumLabels()];
-
-		for(String node : nodes) {
-			if(utils.isLeaf(node)) {
-				preds = sum(preds, getNodePredictions(Integer.parseInt(node)));
-				System.out.println("leaf: " + node);
+	public Prediction reduce(String ind) {
+		Pattern pattern = Pattern.compile("\\((_?\\d+ )+_?\\d+\\)");
+		
+		Matcher m = pattern.matcher(ind);
+		int count = 0;
+		Prediction pred = new Prediction(fullTrainData.getNumInstances(), fullTrainData.getNumLabels());
+		
+		while(m.find()) {
+			pred = combine(m.group(0), table);
+			table.put("_"+count, pred);
+			ind = ind.substring(0, m.start()) + "_" + count + ind.substring(m.end(), ind.length());
+			count++;
+			m = pattern.matcher(ind);
+		}
+		
+//		System.out.println(Arrays.toString(pred.bip[0]));
+		return pred;
+	}
+	
+	protected Prediction combine(String s, Hashtable<String, Prediction> table){
+		Prediction pred = new Prediction(fullTrainData.getNumInstances(), fullTrainData.getNumLabels());
+		
+		Pattern pattern = Pattern.compile("\\d+");
+		Matcher m;
+		int n;
+		int nPreds = 0;
+//		System.out.println("s: " + s);
+		
+		String [] pieces = s.split(" ");
+		for(String piece : pieces) {
+//			System.out.println("piece: " + piece);
+			m = pattern.matcher(piece);
+			m.find();
+			n = Integer.parseInt(m.group(0));
+//			System.out.println("n: " + n);
+			if(piece.contains("_")) {
+				pred.addPrediction(table.get("_"+n));
+				table.remove("_"+n);
+				nPreds++;
 			}
 			else {
-				System.out.println("node: " + node);
-				preds = sum(preds, combine(utils.getChildren(node)));
+				pred.addPrediction(table.get(String.valueOf(n)));
+				nPreds++;
 			}
 		}
 		
-
-		return preds;
-	}
-	
-	protected byte[][] getNodePredictions(int node){
-		byte[][] preds = new byte[fullTrainData.getNumInstances()][fullTrainData.getNumLabels()];
-		MultiLabelOutput mlo;
+//		System.out.println("sum: " + Arrays.toString(pred.bip[0]));
+		pred.divideAndThresholdPrediction(nPreds, 0.5);
+//		System.out.println("div: " + Arrays.toString(pred.bip[0]));
 		
-		try {
-			for(int i=0; i<fullTrainData.getNumInstances(); i++) {
-				mlo = classifiers[node].makePrediction(fullTrainData.getDataSet().get(i));
-				for(int l=0; l<fullTrainData.getNumLabels(); l++) {
-					if(mlo.getBipartition()[l]) {
-						preds[i][l] ++;
-					}
-				}
-			}
-		}catch(Exception e) {
-			e.printStackTrace();
-		}
-		
-		return preds;
-	}
-	
-	protected byte[][] sum(byte[][] b1, byte[][] b2){
-		int nRow = b1.length, nCol = b1[0].length;
-		byte[][] res = new byte[nRow][nCol];
-		
-		for(int i=0; i<nRow; i++) {
-			for(int j=0; j<nRow; j++) {
-				res[i][j] = (byte) (b1[i][j] + b2[i][j]);
-			}
-		}
-		
-		return res;
+		return pred;
 	}
 	
 }
