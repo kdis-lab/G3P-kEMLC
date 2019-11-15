@@ -1,5 +1,6 @@
 package gpemlc;
 
+import java.util.ArrayList;
 import java.util.Hashtable;
 
 import org.apache.commons.configuration.Configuration;
@@ -9,11 +10,17 @@ import gpemlc.recombinator.Crossover;
 import mulan.classifier.InvalidDataException;
 import mulan.classifier.MultiLabelLearner;
 import mulan.classifier.MultiLabelOutput;
+import mulan.classifier.transformation.ClassifierChain;
 import mulan.classifier.transformation.LabelPowerset2;
 import mulan.core.MulanException;
 import mulan.data.MultiLabelInstances;
+import mulan.evaluation.Evaluation;
+import mulan.evaluation.measure.ExampleBasedFMeasure;
+import mulan.evaluation.measure.Measure;
 import net.sf.jclec.algorithm.classic.SGE;
+import net.sf.jclec.selector.BettersSelector;
 import net.sf.jclec.stringtree.StringTreeCreator;
+import net.sf.jclec.stringtree.StringTreeIndividual;
 import net.sf.jclec.util.random.IRandGen;
 import weka.classifiers.trees.J48;
 import weka.core.Instances;
@@ -25,10 +32,12 @@ public class Alg extends SGE {
 	 */
 	private static final long serialVersionUID = -790335501425435317L;
 
+	BettersSelector bselector = new BettersSelector(this);
+	
 	/**
 	 * Max number of children at each node
 	 */
-	int maxChildren = 3;
+	int maxChildren = 5;
 	
 	/**
 	 * Max depth of the tree
@@ -61,17 +70,22 @@ public class Alg extends SGE {
 	int nMLC = 10;
 	
 	/**
-	 * Array of classifiers
+	 * Built classifiers
 	 */
-	MultiLabelLearner[] classifiers;
+	Hashtable<String, MultiLabelLearner> table;
 	
-	 Hashtable<String, Prediction> table;
+	Hashtable<String, Prediction> tablePredictions;
+	
+	Hashtable<String, String> tableChains;
+	 
+	IRandGen randgen;
 	
 	@Override
 	public void configure(Configuration configuration) {
 		super.configure(configuration);
 		
-		table = new Hashtable<String, Prediction>();
+		table = new Hashtable<String, MultiLabelLearner>();
+		tablePredictions = new Hashtable<String, Prediction>();
 		
 		String datasetTrainFileName = configuration.getString("dataset.train-dataset");
 		String datasetTestFileName = configuration.getString("dataset.test-dataset");
@@ -79,7 +93,7 @@ public class Alg extends SGE {
 		
 		sampleRatio = configuration.getDouble("sampling-ratio");
 		
-		IRandGen randgen = randGenFactory.createRandGen();
+		randgen = randGenFactory.createRandGen();
 		
 		fullTrainData = null;
 		testData = null;
@@ -89,16 +103,20 @@ public class Alg extends SGE {
 			testData = new MultiLabelInstances(datasetTestFileName, datasetXMLFileName);
 			
 			trainData = new MultiLabelInstances[nMLC];
-			classifiers = new MultiLabelLearner[nMLC];
 			for(int p=0; p<nMLC; p++) {
 				trainData[p] = MulanUtils.sampleData(fullTrainData, sampleRatio, randgen);
-				classifiers[p] = new LabelPowerset2(new J48());
-				((LabelPowerset2)classifiers[p]).setSeed(1);
-				classifiers[p].build(trainData[p]);
+				
+//				LabelPowerset2 lp = new LabelPowerset2(new J48());
+//				lp.setSeed(1);
+//				table.put(String.valueOf(p), lp);
+//				table.get(String.valueOf(p)).build(trainData[p]);
+				
+				table.put(String.valueOf(p), new ClassifierChain(new J48(), randomChain(fullTrainData.getNumLabels())));
+				table.get(String.valueOf(p)).build(trainData[p]);
 				
 				Prediction pred = new Prediction(fullTrainData.getNumInstances(), fullTrainData.getNumLabels());
 				for(int i=0; i<fullTrainData.getNumInstances(); i++) {
-					boolean[] bip = classifiers[p].makePrediction(fullTrainData.getDataSet().get(i)).getBipartition();
+					boolean[] bip = table.get(String.valueOf(p)).makePrediction(fullTrainData.getDataSet().get(i)).getBipartition();
 					for(int j=0; j<fullTrainData.getNumLabels(); j++) {
 						if(bip[j]) {
 							pred.bip[i][j] = 1;
@@ -109,7 +127,8 @@ public class Alg extends SGE {
 					}
 				}
 				
-				table.put(String.valueOf(p), pred);
+				tablePredictions.put(String.valueOf(p), pred);
+				
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -126,9 +145,9 @@ public class Alg extends SGE {
 		
 		((Crossover)recombinator.getDecorated()).setMaxTreeDepth(maxDepth);
 		
-		((Evaluator)evaluator).setClassifiers(classifiers);
+//		((Evaluator)evaluator).setClassifiers(classifiers);
 		((Evaluator)evaluator).setFullTrainData(fullTrainData);
-		((Evaluator)evaluator).setTable(table);
+		((Evaluator)evaluator).setTablePredictions(tablePredictions);
 	}
 	
 	@Override
@@ -136,5 +155,53 @@ public class Alg extends SGE {
 		super.doInit();
 		
 	}
+	
+	int [] randomChain(int n) {
+		int[] chain = new int[n];
+		for(int i=0; i<n; i++) {
+			chain[i] = i;
+		}
+		
+		int r, aux;
+		for(int i=0; i<n; i++) {
+			r = randgen.choose(n);
+			aux = chain[r];
+			chain[r] = chain[i];
+			chain[i] = aux;
+		}
+		
+		return chain;
+	}
+	
+	protected void doControl()
+	{
+//		System.out.println("Generation " + generation);
+		
+		if (generation >= maxOfGenerations) {
+			EMLC ensemble = new EMLC(new ClassifierChain(new J48()));
+			String bestGenotype = ((StringTreeIndividual)bselector.select(bset, 1).get(0)).getGenotype();
+			ensemble.setGenotype(bestGenotype);
+			ensemble.setTable(table);
+			
+			try {
+				ensemble.build(fullTrainData);
+				
+				ArrayList<Measure> measures = new ArrayList<Measure>();
+				measures.add(new ExampleBasedFMeasure());
+				Evaluation results = new Evaluation(measures, testData);
+				mulan.evaluation.Evaluator eval = new mulan.evaluation.Evaluator();
+				results = eval.evaluate(ensemble, testData);
+				System.out.println(results);
+				
+				
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+			state = FINISHED;
+			return;
+		}
+	}	
 	
 }

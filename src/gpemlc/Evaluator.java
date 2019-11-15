@@ -47,14 +47,10 @@ public class Evaluator extends AbstractEvaluator {
 	 */
 	MultiLabelInstances fullTrainData;
 	
-	/**
-	 * Array of classifiers
-	 */
-	MultiLabelLearner[] classifiers;
-	
 	Utils utils = new Utils();
 	
-	Hashtable<String, Prediction> table = new Hashtable<String, Prediction>();
+	Hashtable<String, MultiLabelLearner> table = new Hashtable<String, MultiLabelLearner>();
+	Hashtable<String, Prediction> tablePredictions = new Hashtable<String, Prediction>();
 	
 	/**
 	 * Constructor
@@ -74,12 +70,12 @@ public class Evaluator extends AbstractEvaluator {
 		this.fullTrainData = fullTrainData;
 	}
 	
-	public void setClassifiers(MultiLabelLearner[] classifiers) {
-		this.classifiers = classifiers;
+	public void setTable(Hashtable<String, MultiLabelLearner> table) {
+		this.table = table;
 	}
 	
-	public void setTable(Hashtable<String, Prediction> table) {
-		this.table = table;
+	public void setTablePredictions(Hashtable<String, Prediction> tablePredictions) {
+		this.tablePredictions = tablePredictions;
 	}
 	
 	@Override
@@ -149,7 +145,7 @@ public class Evaluator extends AbstractEvaluator {
 		
 		while(m.find()) {
 			pred = combine(m.group(0), table);
-			table.put("_"+count, pred);
+			tablePredictions.put("_"+count, pred);
 			ind = ind.substring(0, m.start()) + "_" + count + ind.substring(m.end(), ind.length());
 			count++;
 			m = pattern.matcher(ind);
@@ -159,7 +155,7 @@ public class Evaluator extends AbstractEvaluator {
 		return pred;
 	}
 	
-	protected Prediction combine(String s, Hashtable<String, Prediction> table){
+	protected Prediction combine(String s, Hashtable<String, MultiLabelLearner> table){
 		Prediction pred = new Prediction(fullTrainData.getNumInstances(), fullTrainData.getNumLabels());
 		
 		Pattern pattern = Pattern.compile("\\d+");
@@ -176,12 +172,13 @@ public class Evaluator extends AbstractEvaluator {
 			n = Integer.parseInt(m.group(0));
 //			System.out.println("n: " + n);
 			if(piece.contains("_")) {
-				pred.addPrediction(table.get("_"+n));
+				pred.addPrediction(tablePredictions.get("_"+n));
 				table.remove("_"+n);
 				nPreds++;
 			}
 			else {
-				pred.addPrediction(table.get(String.valueOf(n)));
+//				pred.addPrediction(getPredictions(table.get(String.valueOf(n))));
+				pred.addPrediction(tablePredictions.get(String.valueOf(n)));
 				nPreds++;
 			}
 		}
@@ -191,6 +188,26 @@ public class Evaluator extends AbstractEvaluator {
 //		System.out.println("div: " + Arrays.toString(pred.bip[0]));
 		
 		return pred;
+	}
+	
+	protected byte[][] getPredictions(MultiLabelLearner learner){
+		byte[][] bip = new byte[fullTrainData.getNumInstances()][fullTrainData.getNumLabels()];
+		
+		try {
+			for(int i=0; i<fullTrainData.getNumInstances(); i++) {
+				boolean[] boolPred = learner.makePrediction(fullTrainData.getDataSet().get(i)).getBipartition();
+				for(int j=0; j<fullTrainData.getNumLabels(); j++) {
+					if(boolPred[j]) {
+						bip[i][j] = 1;
+					}
+				}
+			}
+		}catch(Exception e) {
+			e.printStackTrace();
+		}
+		
+		return bip;
+		
 	}
 	
 }

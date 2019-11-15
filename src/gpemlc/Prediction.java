@@ -22,6 +22,12 @@ public class Prediction {
 		this.bip = new byte[nInstances][nLabels];
 	}
 	
+	public Prediction(byte[][] prediction) {
+		this.nInstances = prediction.length;
+		this.nLabels = prediction[0].length;
+		this.bip = prediction.clone();
+	}
+	
 	public void addPrediction(Prediction other) {
 		if(this.nInstances != other.nInstances || this.nLabels != other.nLabels) {
 			System.out.println("The number of instances or labels is not the same in both predictions.");
@@ -31,6 +37,19 @@ public class Prediction {
 		for(int i=0; i<nInstances; i++) {
 			for(int j=0; j<nLabels; j++) {
 				this.bip[i][j] += other.bip[i][j];
+			}
+		}
+	}
+	
+	public void addPrediction(byte[][] otherBip) {
+		if(this.nInstances != otherBip.length || this.nLabels != otherBip[0].length) {
+			System.out.println("The number of instances or labels is not the same in both predictions.");
+			System.exit(-1);
+		}
+		
+		for(int i=0; i<nInstances; i++) {
+			for(int j=0; j<nLabels; j++) {
+				this.bip[i][j] += otherBip[i][j];
 			}
 		}
 	}
