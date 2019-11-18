@@ -83,52 +83,44 @@ public class Crossover extends StringTreeRecombinator {
 		int allowedDepth, currentDepth;
 		String introduceSubtree;
 
-		//Choose leaf or subtree of parent
+		//Choose leaf or subtree of parent1
 		if(chooseLeaf || utils.calculateTreeMaxDepth(ind1) <= 1) { //If the parent has depth=1, we can just choose leaf
 			subTree = utils.chooseRandomLeaf(ind1);
-//			System.out.println("leaf1: " + ind1.substring(subTree[0], subTree[1]));
 		}
 		else {
 			subTree = utils.chooseRandomSubTree(ind1, false);
-//			System.out.println("subtree1: " + ind1.substring(subTree[0], subTree[1]));
 		}
 		
 		//Calculate max depth allowed for subtree to select from the other ind
 		allowedDepth = maxTreeDepth - utils.calculateNodeDepth(ind1, subTree[0]);
 		if(allowedDepth < 0 ) {
-//			System.out.println(ind1);
-//			System.out.println(subTree[0] + " ; " + utils.calculateNodeDepth(ind1, subTree[0]));
+			System.out.println("The allowed depth is lower than 0.");
 			System.exit(-1);
 		}
 		if(allowedDepth == 0) { //We can just select a leaf
 			otherSubtree = utils.chooseRandomLeaf(ind2);
 			introduceSubtree = ind2.substring(otherSubtree[0], otherSubtree[1]);
-//			System.out.println("leaf2: " + introduceSubtree);
 		}
 		else {
 			chooseLeaf = randgen.coin();
 			if(chooseLeaf) { //Choose leaf
 				otherSubtree = utils.chooseRandomLeaf(ind2);
 				introduceSubtree = ind2.substring(otherSubtree[0], otherSubtree[1]);
-//				System.out.println("leaf2: " + introduceSubtree);
 			}
 			else { //Choose subtree until allowed size
 				String cpInd2 = new String(ind2);
 				otherSubtree[0] = 0;
 				otherSubtree[1] = cpInd2.length();
 				do {
-//					System.out.println("cpInd2: " + cpInd2);
 					cpInd2 = cpInd2.substring(otherSubtree[0], otherSubtree[1]);
 					otherSubtree = utils.chooseRandomSubTree(cpInd2, true);
 					currentDepth = utils.calculateTreeMaxDepth(cpInd2.substring(otherSubtree[0], otherSubtree[1]));
-//					System.out.println(currentDepth + " ; " + allowedDepth);
 				}while(currentDepth > allowedDepth);
 				introduceSubtree = cpInd2.substring(otherSubtree[0], otherSubtree[1]);
-//				System.out.println("subtree2: " + introduceSubtree);
 			}
 		}
 		
-//		return ind1.substring(0, subTree[0]) + ind2.substring(otherSubtree[0], otherSubtree[1]) + ind1.substring(subTree[1], ind1.length());
+		//Return crossed individual with replaced subtree of ind2 and the rest of ind1
 		return ind1.substring(0, subTree[0]) + introduceSubtree + ind1.substring(subTree[1], ind1.length());
 	}
 }

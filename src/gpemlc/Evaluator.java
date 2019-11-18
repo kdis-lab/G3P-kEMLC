@@ -1,19 +1,14 @@
 package gpemlc;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Hashtable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import mulan.classifier.MultiLabelLearner;
-import mulan.classifier.MultiLabelOutput;
 import mulan.data.MultiLabelInstances;
 import net.sf.jclec.IFitness;
 import net.sf.jclec.IIndividual;
 import net.sf.jclec.base.AbstractEvaluator;
-import net.sf.jclec.base.AbstractParallelEvaluator;
 import net.sf.jclec.fitness.SimpleValueFitness;
 import net.sf.jclec.fitness.ValueFitnessComparator;
 import net.sf.jclec.stringtree.StringTreeIndividual;
@@ -47,9 +42,14 @@ public class Evaluator extends AbstractEvaluator {
 	 */
 	MultiLabelInstances fullTrainData;
 	
+	/**
+	 * Utils
+	 */
 	Utils utils = new Utils();
 	
-	Hashtable<String, MultiLabelLearner> table = new Hashtable<String, MultiLabelLearner>();
+	/**
+	 * Table with predictions of each classifier over fullTrainData
+	 */
 	Hashtable<String, Prediction> tablePredictions = new Hashtable<String, Prediction>();
 	
 	/**
@@ -58,6 +58,7 @@ public class Evaluator extends AbstractEvaluator {
 	public Evaluator()
 	{
 		super();
+		utils = new Utils();
 	}
 	
 
@@ -66,14 +67,20 @@ public class Evaluator extends AbstractEvaluator {
 		return COMPARATOR;
 	}
 	
+	/**
+	 * Setter for fullTrainData
+	 * 
+	 * @param fullTrainData Full training data
+	 */
 	public void setFullTrainData(MultiLabelInstances fullTrainData) {
 		this.fullTrainData = fullTrainData;
 	}
-	
-	public void setTable(Hashtable<String, MultiLabelLearner> table) {
-		this.table = table;
-	}
-	
+
+	/**
+	 * Setter for tablePredictions
+	 * 
+	 * @param tablePredictions Table with predictions of each classifier over full train data
+	 */
 	public void setTablePredictions(Hashtable<String, Prediction> tablePredictions) {
 		this.tablePredictions = tablePredictions;
 	}
@@ -81,25 +88,28 @@ public class Evaluator extends AbstractEvaluator {
 	@Override
 	protected void evaluate(IIndividual ind) 
 	{
-		//Individual genotype (list)
 		String gen = ((StringTreeIndividual)ind).getGenotype();
+
+		double fitness = 0.0;
 		
-		Utils utils = new Utils();
-		double fitness = utils.countLeaves(gen);
-		
-//		System.out.println("gen: " + gen);
+		//Get predictions by reducing the ree
 		Prediction pred = reduce(gen);
 		
-		fitness = eval(pred, fullTrainData);
-//		System.out.println("fitness: " + fitness);
-//		System.exit(1);
+		//Calculate fitness (ExF) with the reduced predictions
+		fitness = exF(pred, fullTrainData);
 		
 		//Set individual fitness
 		ind.setFitness(new SimpleValueFitness(fitness));
-
 	}
 	
-	protected double eval(Prediction pred, MultiLabelInstances mlData) {
+	/**
+	 * Calculate the Example-FMeasure (ExF) for given prediction of all instances and true dataset
+	 * 
+	 * @param pred Predictions
+	 * @param mlData Multi-label data
+	 * @return ExF
+	 */
+	protected double exF(Prediction pred, MultiLabelInstances mlData) {
 		int[] labelIndices = mlData.getLabelIndices();
 		byte [] ground = new byte[mlData.getNumLabels()];
 		
@@ -107,17 +117,26 @@ public class Evaluator extends AbstractEvaluator {
 		
 		for(int i=0; i<mlData.getNumInstances(); i++) {
 			for(int j=0; j<mlData.getNumLabels(); j++) {
+				//Get ground truth for all labels in i-th instance
 				ground[j] = (byte) mlData.getDataSet().get(i).value(labelIndices[j]);
 			}
 			
-			exF += evalInstance(pred.bip[i], ground);
-			
+			//Calculate exF for prediction and ground truth of i-th instance
+			exF += exFInstance(pred.bip[i], ground);	
 		}
 		
+		//Divide the exF by the number of instances and return it
 		return exF/mlData.getNumInstances();
 	}
 	
-	protected double evalInstance(byte[] pred, byte[] ground) {
+	/**
+	 * Calculate the Example-FMeasure (ExF) for given prediction and ground truth for one instance
+	 * 
+	 * @param pred Prediction of one instance
+	 * @param ground Ground truth
+	 * @return ExF
+	 */
+	protected double exFInstance(byte[] pred, byte[] ground) {
 		double num=0, den=0;
 		
 		for(int i=0; i<pred.length; i++) {
@@ -135,79 +154,81 @@ public class Evaluator extends AbstractEvaluator {
 		return num/den;
 	}
 	
-
+	/**
+	 * Reduce the tree and obtain the final tree prediction
+	 * 
+	 * @param ind Individual, tree
+	 * @return Final tree prediction
+	 */
 	public Prediction reduce(String ind) {
+		//Match two or more leaves (numer or _number) between parenthesis
 		Pattern pattern = Pattern.compile("\\((_?\\d+ )+_?\\d+\\)");
-		
 		Matcher m = pattern.matcher(ind);
+		
+		//count to add predictions of combined nodes into the table
 		int count = 0;
 		Prediction pred = new Prediction(fullTrainData.getNumInstances(), fullTrainData.getNumLabels());
 		
 		while(m.find()) {
-			pred = combine(m.group(0), table);
+			//Combine the predictions of current nodes
+			pred = combine(m.group(0));
+			
+			//Put combined predictions into the table
 			tablePredictions.put("_"+count, pred);
+			
+			//Replace node in the genotype
 			ind = ind.substring(0, m.start()) + "_" + count + ind.substring(m.end(), ind.length());
+			
+			//Increment counter and match next one
 			count++;
 			m = pattern.matcher(ind);
 		}
 		
-//		System.out.println(Arrays.toString(pred.bip[0]));
 		return pred;
 	}
 	
-	protected Prediction combine(String s, Hashtable<String, MultiLabelLearner> table){
+	/**
+	 * Combine the predictions of several nodes
+	 * 
+	 * @param nodes String with the nodes to combine
+	 * @return Combined prediction
+	 */
+	protected Prediction combine(String nodes){
 		Prediction pred = new Prediction(fullTrainData.getNumInstances(), fullTrainData.getNumLabels());
 		
 		Pattern pattern = Pattern.compile("\\d+");
 		Matcher m;
-		int n;
-		int nPreds = 0;
-//		System.out.println("s: " + s);
 		
-		String [] pieces = s.split(" ");
+		int n, nPreds = 0;
+		
+		//Split the nodes by space, so get the leaves
+		String [] pieces = nodes.split(" ");
 		for(String piece : pieces) {
-//			System.out.println("piece: " + piece);
+			//Get index included in the piece and store in n
 			m = pattern.matcher(piece);
 			m.find();
 			n = Integer.parseInt(m.group(0));
-//			System.out.println("n: " + n);
+
+			//If the piece contains the character "_" is a combination of other nodes
 			if(piece.contains("_")) {
+				//Add to the current prediction, the prediction of one of the previously combined nodes
 				pred.addPrediction(tablePredictions.get("_"+n));
-				table.remove("_"+n);
+				
+				//Remove because it is not going to be used again
+				tablePredictions.remove("_"+n);
 				nPreds++;
 			}
 			else {
-//				pred.addPrediction(getPredictions(table.get(String.valueOf(n))));
+				//Add to the current prediction, the prediction of the corresponding classifier
 				pred.addPrediction(tablePredictions.get(String.valueOf(n)));
 				nPreds++;
 			}
 		}
 		
-//		System.out.println("sum: " + Arrays.toString(pred.bip[0]));
+		//Divide prediction by the number of learners and apply threshold
 		pred.divideAndThresholdPrediction(nPreds, 0.5);
-//		System.out.println("div: " + Arrays.toString(pred.bip[0]));
 		
 		return pred;
-	}
-	
-	protected byte[][] getPredictions(MultiLabelLearner learner){
-		byte[][] bip = new byte[fullTrainData.getNumInstances()][fullTrainData.getNumLabels()];
-		
-		try {
-			for(int i=0; i<fullTrainData.getNumInstances(); i++) {
-				boolean[] boolPred = learner.makePrediction(fullTrainData.getDataSet().get(i)).getBipartition();
-				for(int j=0; j<fullTrainData.getNumLabels(); j++) {
-					if(boolPred[j]) {
-						bip[i][j] = 1;
-					}
-				}
-			}
-		}catch(Exception e) {
-			e.printStackTrace();
-		}
-		
-		return bip;
-		
 	}
 	
 }

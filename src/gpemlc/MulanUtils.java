@@ -5,13 +5,20 @@ import mulan.data.MultiLabelInstances;
 import net.sf.jclec.util.random.IRandGen;
 import weka.core.Instances;
 
+/**
+ * Class implementing some utilities for Mulan objects
+ * 
+ * @author Jose M. Moyano
+ * 
+ */
 public class MulanUtils {
-
+	
 	/**
-	 * Partition data into train and validation sets
+	 * Sample multi-label data with given ratio
 	 * 
-	 * @param mlData Full data
-	 * @param samplingTechnique Technique for selecting the data
+	 * @param mlData Full dataset
+	 * @param ratio Ratio of instances to select, between [0, 1]
+	 * @param randgen Random numbers generator
 	 * @return Sampled dataset
 	 */
 	public static MultiLabelInstances sampleData(MultiLabelInstances mlData, double ratio, IRandGen randgen){
@@ -30,7 +37,7 @@ public class MulanUtils {
 		}
 		int r, aux;
 		for(int i=0; i<mlData.getNumInstances(); i++) {
-			r = randgen.choose(mlData.getNumInstances());
+			r = randgen.choose(0, mlData.getNumInstances());
 			aux = indexes[i];
 			indexes[i] = indexes[r];
 			indexes[r] = aux;

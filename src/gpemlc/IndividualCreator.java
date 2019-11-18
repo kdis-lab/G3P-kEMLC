@@ -1,6 +1,6 @@
 package gpemlc;
 
-import java.util.Random;
+import net.sf.jclec.util.random.IRandGen;
 
 /**
  * Class implementing the individual creator for GP-EMLC individuals
@@ -9,12 +9,23 @@ import java.util.Random;
  *
  */
 public class IndividualCreator {
-	
+
 	/**
 	 * Random numbers generator
 	 */
-	static Random rand = new Random();
-
+	IRandGen randgen;
+	
+	public IndividualCreator(IRandGen randgen) {
+		this.randgen = randgen;
+	}
+	
+	/**
+	 * Setter for randgen
+	 * @param rangen
+	 */
+	public void setRangen(IRandGen randgen) {
+		this.randgen = randgen;
+	}
 	
 	/**
 	 * Create an individual of given maximum depth
@@ -24,43 +35,61 @@ public class IndividualCreator {
 	 * @return Individual as String
 	 */
 	public String create(int nMax, int maxDepth, int nChilds) {
+		//The individual at the beginning is the node 'S' and the end of individual ';'
 		String ind = "S;";
+		
+		//Current position creating the individual
 		int pos = 0;
+		
+		//Depth of the current node
 		int currDepth = 0;
 				
 		do {
 			switch (ind.charAt(pos)) {
+			//If initial 'S' node, create a random number of child nodes 'C'.
+				//Random in [2, maxChild] range
 			case 'S':
 				ind = replace(ind, pos, childRandomSize(nChilds));
 				break;
+			
+			//If a node 'C' is found, it is replaced by one of:
+			//	- Random number of child in [2, maxChild] range
+			//	- Random leaf
+			//If the current depth is equal than the max allowed depth, a random leaf is automatically included
 			case 'C':
 				if(currDepth < maxDepth) {
-					if(rand.nextBoolean()) {
+					if(randgen.coin()) {
 						ind = replace(ind, pos, childRandomSize(nChilds));
 					}
 					else {
-						ind = replace(ind, pos, String.valueOf(rand.nextInt(nMax)));
+						//Replace current 'C' by random leaf in [0, nMax) range
+						ind = replace(ind, pos, String.valueOf(randgen.choose(0, nMax)));
 					}
 				}
 				else {
-					ind = replace(ind, pos, String.valueOf(rand.nextInt(nMax)));
+					//Replace current 'C' by random leaf in [0, nMax) range
+					ind = replace(ind, pos, String.valueOf(randgen.choose(0, nMax)));
 				}				
 				break;
-			
+				
+			//If a start parenthesis is found, a new node starts so the current depth is incremented
 			case '(':
 				currDepth++;
 				pos++;
 				break;
+			
+			//If a close parenthesis is found, a node ends so the current depth is decremented
 			case ')':
 				currDepth--;
 				pos++;
 				break;
 				
+			//If any other character, just go to next position in the String
 			default:
 				pos++;
 				break;
 			}
-		}while(ind.charAt(pos) != ';');
+		}while(ind.charAt(pos) != ';'); //Finish when the end character ";" is found
 		
 		return ind;
 	}
@@ -72,10 +101,15 @@ public class IndividualCreator {
 	 * @return String
 	 */
 	private String child(int n) {
+		//Start with open parenthesis
 		String child = "(";
+		
+		//Add n times the "C" and a space
 		for(int i=0; i<n; i++) {
 			child += "C ";
 		}
+		
+		//Replace last space " " with end parenthesis
 		child = child.substring(0, child.length()-1) + ")";
 		
 		return child;
@@ -88,8 +122,7 @@ public class IndividualCreator {
 	 * @return String
 	 */
 	private String childRandomSize(int maxChildren) {
-		int currNChild = rand.nextInt(maxChildren-1)+2; //between 2 and max, included
-		return child(currNChild);
+		return child(randgen.choose(2, maxChildren+1)); //between 2 and max, included
 	}
 	
 	/**

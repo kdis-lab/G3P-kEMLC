@@ -1,10 +1,16 @@
 package gpemlc;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Random;
+import java.util.Collections;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import net.sf.jclec.util.random.IRandGen;
 
 /**
  * Class implementing several utilities to deal with GP-EMLC individuals
@@ -17,13 +23,15 @@ public class Utils {
 	/**
 	 * Random numbers generator
 	 */
-	public static Random rand = new Random();
+	public static IRandGen randgen = null;
 
 	/**
 	 * Empty constructor
 	 */
 	public Utils() {
-		rand = new Random();
+		//Do nothing.
+		//At least once the Utils class need to be instantiated with randgen
+		//Then we can just use this constructor
 	}
 	
 	/**
@@ -31,8 +39,8 @@ public class Utils {
 	 * 
 	 * @param rand Random numbers generator
 	 */
-	public Utils(Random rand) {
-		Utils.rand = rand;
+	public Utils(IRandGen randgen) {
+		Utils.randgen = randgen;
 	}
 	
 	/**
@@ -55,11 +63,39 @@ public class Utils {
 		Pattern p = Pattern.compile("\\d+"); // "\d" is for digits in regex
 		Matcher m = p.matcher(ind);
 		int count = 0;
+		
+		//Increment the counter each time that a number is found on the String
 		while(m.find()){
 			count++;
 		}
 		
 		return count;
+	}
+	
+	/**
+	 * Get a list including the leaves of the tree (without repetition)
+	 * 
+	 * @param ind Tree
+	 * @return ArrayList of Integers with leaves without repetition
+	 */
+	public ArrayList<Integer> getLeaves(String ind) {
+		Pattern p = Pattern.compile("\\d+"); // "\d" is for digits in regex
+		Matcher m = p.matcher(ind);
+		
+		Integer leaf;
+		ArrayList<Integer> leaves = new ArrayList<Integer>();
+		
+		//Add to the list each different number (leaf) found
+		while(m.find()){
+			leaf = Integer.parseInt(m.group());
+			if(!leaves.contains(leaf)) {
+				leaves.add(leaf);
+			}
+		}
+		
+		Collections.sort(leaves);
+		
+		return leaves;
 	}
 	
 	/**
@@ -69,17 +105,21 @@ public class Utils {
 	 * @return Array with index of start and end of the current leaf
 	 */
 	public int[] chooseRandomLeaf(String ind) {
+		//Get the number of leaves
 		int nLeaves = countLeaves(ind);
-		int r = rand.nextInt(nLeaves);
+		int r = randgen.choose(0, nLeaves);
 		
 		Pattern p = Pattern.compile("\\d+"); // "\d" is for digits in regex
 		Matcher m = p.matcher(ind);
+		
+		//Match leaves until counter reaches the randomly generated r
 		int count = 0;
 		do {
 			m.find();
 			count++;
 		}while(count<=r);
 		
+		//Indexes of start and end of the leaf in the String
 		int[] leaf = new int[2];
 		leaf[0] = m.start();
 		leaf[1] = m.end();
@@ -152,13 +192,13 @@ public class Utils {
 		int r;
 		
 		if(considerRoot || parenthesis > 1) {
+			//If the whole tree is not considered as a subtree, avoid to select the first parenthresis
 			if(!considerRoot) {
-				r = rand.nextInt(parenthesis-1)+1; //avoid to select root (parenthesis 0)
+				r = randgen.choose(1, parenthesis); //avoid to select root (parenthesis 0)
 			}
 			else {
-				r = rand.nextInt(parenthesis);
+				r = randgen.choose(0, parenthesis);
 			}
-			
 			
 			int beginParenthesisCount = 0, extraBeginParenthesis = 0;
 			int startSubstr=0, endSubstr=0;
@@ -167,6 +207,7 @@ public class Utils {
 			do {
 				switch (ind.charAt(pos)) {
 				case '(':
+					//If we are not yet extracting a subtree, check if we want to extract current subtree
 					if(!extracting) {
 						if(beginParenthesisCount == r) {
 							extracting = true;
@@ -176,12 +217,15 @@ public class Utils {
 							beginParenthesisCount++;
 						}
 					}
+					//If we are already extracting subtree, consider that inside there are a new parenthesis
+						//that need to be closed first
 					else {
 						extraBeginParenthesis++;
 					}
 					
 					break;
 				case ')':
+					//If we are extracting a subtree, check if we have closed all sub-node parenthesis
 					if(extracting) {
 						if(extraBeginParenthesis > 0) {
 							extraBeginParenthesis--;
@@ -209,13 +253,21 @@ public class Utils {
 		return subTree;
 	}
 	
-	public boolean checkInd(String ind, int n) {
+	/**
+	 * Check if an individual is correct or not
+	 * 
+	 * @param ind Individual
+	 * @return True if it is feasible and correct; false otherwise
+	 */
+	public boolean checkInd(String ind) {
 		Pattern pattern = Pattern.compile("\\((\\d+ )+\\d+\\)");
 		
+		//Replace each match by "0"
 		while(pattern.matcher(ind).find()) {
 			ind = ind.replaceAll("\\((\\d+ )+\\d+\\)", "0");
 		}
 		
+		//If the reduced individual matchs with "0;", it is feasible
 		if(ind.equals("0;")) {
 			return true;
 		}
@@ -224,53 +276,66 @@ public class Utils {
 		}
 	}
 	
+	/**
+	 * Check if a given node is a leaf (if it just contains a number)
+	 * 
+	 * @param node Node of the tree
+	 * @return True if it is a leaf; false otherwise
+	 */
 	public boolean isLeaf(String node) {
 		return node.matches("^\\d+$");
 	}
 	
+	/**
+	 * Check if a given String correspond to a full node
+	 * 	A node start and end with parenthesis, and may end with ";"
+	 * 
+	 * @param node String containing a possible node
+	 * @return True if it is a node; false otherwise
+	 */
 	public boolean isNode(String node) {
 		return node.matches("^\\(.*\\)(;)?$");
 	}
 	
-	public void reduce(String ind) {
-		Pattern pattern = Pattern.compile("\\((_?\\d+ )+_?\\d+\\)");
-		ArrayList<Integer> list = new ArrayList<Integer>();
-		Matcher m = pattern.matcher(ind);
-		int count = 0, sum;
-		
-		while(m.find()) {
-			sum = sum(m.group(0), list);
-			list.add(sum);
-			ind = ind.substring(0, m.start()) + "_" + count + ind.substring(m.end(), ind.length());
-			count++;
-			m = pattern.matcher(ind);
-		}
-	}
+	/**
+	 * Write an object to the hard disk
+	 * 
+	 * @param obj Object to write
+	 * @param filepath Path of the file for the object
+	 */
+	public void writeObject(Object obj, String filepath) {
+        try {
+            FileOutputStream fileOut = new FileOutputStream(filepath);
+            ObjectOutputStream objectOut = new ObjectOutputStream(fileOut);
+            objectOut.writeObject(obj);
+            objectOut.close();
+ 
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
 	
-	private int sum(String s, ArrayList<Integer> list) {
-		int total = 0;
-		Pattern pattern = Pattern.compile("\\d+");
-		Matcher m;
-		int n;
+	/**
+	 * Load an object from hard disk
+	 * 
+	 * @param filepath Path of the file
+	 * @return Loaded object
+	 */
+	public Object loadObject(String filepath) {
+        Object obj = null;
 		
-		String [] pieces = s.split(" ");
-		for(String piece : pieces) {
-			System.out.println("piece: " + piece);
-			m = pattern.matcher(piece);
-			m.find();
-			n = Integer.parseInt(m.group(0));
-			System.out.println("n: " + n);
-			if(piece.contains("_")) {
-				total += list.get(n);
-			}
-			else {
-				total += n;
-			}
-		}
-		
-		System.out.println("total: " + total);
-		return total;
-	}
+		try {
+        	FileInputStream fi = new FileInputStream(new File(filepath));
+			ObjectInputStream oi = new ObjectInputStream(fi);
 
+			obj = oi.readObject();
+			oi.close();
+ 
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        
+        return obj;
+    }
 	
 }

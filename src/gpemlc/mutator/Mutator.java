@@ -1,7 +1,5 @@
 package gpemlc.mutator;
 
-import java.util.Random;
-
 import gpemlc.IndividualCreator;
 import gpemlc.Utils;
 import net.sf.jclec.ISpecies;
@@ -100,9 +98,8 @@ public class Mutator extends StringTreeMutator {
 		//Get individual to be mutated
 		StringTreeIndividual mutant = (StringTreeIndividual) parentsBuffer.get(parentsCounter);
 		
-		StringTreeIndividual mutated = new StringTreeIndividual(mutate(mutant.getGenotype()));
-		
-		sonsBuffer.add(mutated);
+		//Mutate individual and add to buffer
+		sonsBuffer.add(new StringTreeIndividual(mutate(mutant.getGenotype())));
 	}
 	
 	/**
@@ -116,6 +113,7 @@ public class Mutator extends StringTreeMutator {
 		boolean chooseLeaf = randgen.coin();
 		int[] subTree;
 		
+		//Choose a leaf if the coin said that, or if the depth of the tree is 1 (just leaves)
 		if(chooseLeaf || utils.calculateTreeMaxDepth(ind) <= 1) {
 			subTree = utils.chooseRandomLeaf(ind);
 		}
@@ -123,20 +121,25 @@ public class Mutator extends StringTreeMutator {
 			subTree = utils.chooseRandomSubTree(ind, false);
 		}
 		
+		//Calculate the allowed depth for the subtree to include in the current position
 		int allowedDepth = maxTreeDepth - utils.calculateNodeDepth(ind, subTree[0]);
 		String newSubtree;
 		
-		//If allowedDepth is 0, select just a random leaf
-		if(allowedDepth == 0) {
+		boolean replaceByLeaf = randgen.coin();
+		//If allowedDepth is 0, or if it was determined that the replace is a leaf, select just a random leaf
+		if(allowedDepth == 0 || replaceByLeaf) {
 			newSubtree = String.valueOf(randgen.choose(0, nMax));
 		}
 		else {
-			IndividualCreator creator = new IndividualCreator();
+			//Create a new subtree of maximum allowedDepth to substitute the node
+			IndividualCreator creator = new IndividualCreator(randgen);
 			newSubtree = creator.create(nMax, allowedDepth, nChilds);
+			
+			//Remove here the ";" indicating the end of the individual
 			newSubtree = newSubtree.substring(0, newSubtree.length()-1);
 		}
 		
-		//newSubtree.length()-1 is to remove the ";"
+		//Create new individual by combining old and new subtree
 		return ind.substring(0, subTree[0]) + newSubtree + ind.substring(subTree[1], ind.length());
 	}
 	

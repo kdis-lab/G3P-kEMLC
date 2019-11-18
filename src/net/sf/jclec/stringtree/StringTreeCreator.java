@@ -152,46 +152,7 @@ public class StringTreeCreator extends AbstractCreator
 	 */
 	private final String createGenotype()
 	{
-		IndividualCreator creator = new IndividualCreator();
+		IndividualCreator creator = new IndividualCreator(randgen);
 		return creator.create(nMax, maxDepth, maxChildren);
-	}
-	
-	/**
-	 * Creates a child in the form (C ... C) including n times the 'C'
-	 * 
-	 * @param n Number of children
-	 * @return String
-	 */
-	private String child(int n) {
-		String child = "(";
-		for(int i=0; i<n; i++) {
-			child += "C ";
-		}
-		child = child.substring(0, child.length()-1) + ")";
-		
-		return child;
-	}
-	
-	/**
-	 * Creates a child in the form (C ... C) including the 'C' a random number of times between [2, max]
-	 * 
-	 * @param maxChildren Max number of children
-	 * @return String
-	 */
-	private String childRandomSize(int maxChildren) {
-		int currNChild = randgen.choose(2, maxChildren+1); //between 2 and max, included
-		return child(currNChild);
-	}
-	
-	/**
-	 * Replace a given position in the string with a new string
-	 * 
-	 * @param str Original string 
-	 * @param pos Position to replace
-	 * @param newStr String to insert in position 'pos'
-	 * @return Modified string
-	 */
-	public String replace(String str, int pos, String newStr) {
-		return str.substring(0, pos) + newStr + str.substring(pos+1, str.length());
 	}
 }

@@ -293,7 +293,7 @@ public class PopulationReporter implements IAlgorithmListener, IConfigure
 		sb.append("Worst individual: "+worst+ ((SimpleValueFitness)worst.getFitness()).getValue() + "\n");
 		// Median individual
 		IIndividual median = IndividualStatistics.medianIndividual(inhabitants, comparator);
-		sb.append("Median individual: "+median+"\n");		
+		sb.append("Median individual: "+median+  ((SimpleValueFitness)median.getFitness()).getValue() + "\n");		
 		// Average fitness and fitness variance
 		double [] avgvar = IndividualStatistics.averageFitnessAndFitnessVariance(inhabitants);
 		sb.append("Average fitness = " + avgvar[0]+"\n");

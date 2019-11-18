@@ -2,28 +2,23 @@ package gpemlc;
 
 import java.util.ArrayList;
 import java.util.Hashtable;
+import java.util.List;
 
 import org.apache.commons.configuration.Configuration;
 
 import gpemlc.mutator.Mutator;
 import gpemlc.recombinator.Crossover;
-import mulan.classifier.InvalidDataException;
-import mulan.classifier.MultiLabelLearner;
-import mulan.classifier.MultiLabelOutput;
-import mulan.classifier.transformation.ClassifierChain;
+import mulan.classifier.MultiLabelLearnerBase;
 import mulan.classifier.transformation.LabelPowerset2;
-import mulan.core.MulanException;
 import mulan.data.MultiLabelInstances;
 import mulan.evaluation.Evaluation;
-import mulan.evaluation.measure.ExampleBasedFMeasure;
-import mulan.evaluation.measure.Measure;
+import mulan.evaluation.measure.*;
 import net.sf.jclec.algorithm.classic.SGE;
 import net.sf.jclec.selector.BettersSelector;
 import net.sf.jclec.stringtree.StringTreeCreator;
 import net.sf.jclec.stringtree.StringTreeIndividual;
 import net.sf.jclec.util.random.IRandGen;
 import weka.classifiers.trees.J48;
-import weka.core.Instances;
 
 public class Alg extends SGE {
 
@@ -32,17 +27,20 @@ public class Alg extends SGE {
 	 */
 	private static final long serialVersionUID = -790335501425435317L;
 
+	/**
+	 * Betters selector
+	 */
 	BettersSelector bselector = new BettersSelector(this);
 	
 	/**
 	 * Max number of children at each node
 	 */
-	int maxChildren = 5;
+	int maxChildren = 3;
 	
 	/**
 	 * Max depth of the tree
 	 */
-	int maxDepth = 2;
+	int maxDepth = 3;
 	
 	/**
 	 * Full training dataset
@@ -67,56 +65,73 @@ public class Alg extends SGE {
 	/**
 	 * Number of MLC
 	 */
-	int nMLC = 10;
+	int nMLC = 20;
 	
 	/**
-	 * Built classifiers
+	 * Utils
 	 */
-	Hashtable<String, MultiLabelLearner> table;
+	Utils utils;
 	
+	/**
+	 * Table with built classifiers
+	 */
+	Hashtable<String, MultiLabelLearnerBase> table;
+	
+	/**
+	 * Table with predictions of each classifier
+	 */
 	Hashtable<String, Prediction> tablePredictions;
 	
-	Hashtable<String, String> tableChains;
-	 
+	/**
+	 * Random numbers generator
+	 */
 	IRandGen randgen;
 	
 	@Override
 	public void configure(Configuration configuration) {
 		super.configure(configuration);
 		
-		table = new Hashtable<String, MultiLabelLearner>();
+		randgen = randGenFactory.createRandGen();
+		utils = new Utils(randgen);
+		
+		//Initialize tables
+		table = new Hashtable<String, MultiLabelLearnerBase>();
 		tablePredictions = new Hashtable<String, Prediction>();
 		
+		//Get datasets
 		String datasetTrainFileName = configuration.getString("dataset.train-dataset");
 		String datasetTestFileName = configuration.getString("dataset.test-dataset");
 		String datasetXMLFileName = configuration.getString("dataset.xml");
 		
 		sampleRatio = configuration.getDouble("sampling-ratio");
 		
-		randgen = randGenFactory.createRandGen();
-		
 		fullTrainData = null;
 		testData = null;
 		try {
 			fullTrainData = new MultiLabelInstances(datasetTrainFileName, datasetXMLFileName);
-			Instances evalData = fullTrainData.getDataSet();
 			testData = new MultiLabelInstances(datasetTestFileName, datasetXMLFileName);
 			
 			trainData = new MultiLabelInstances[nMLC];
-			for(int p=0; p<nMLC; p++) {
-				trainData[p] = MulanUtils.sampleData(fullTrainData, sampleRatio, randgen);
+			for(int c=0; c<nMLC; c++) {
+				//Sample c-th data
+				trainData[c] = MulanUtils.sampleData(fullTrainData, sampleRatio, randgen);
 				
-//				LabelPowerset2 lp = new LabelPowerset2(new J48());
-//				lp.setSeed(1);
-//				table.put(String.valueOf(p), lp);
-//				table.get(String.valueOf(p)).build(trainData[p]);
+				//Build classifier with c-th data and store in the table
+				LabelPowerset2 lp = new LabelPowerset2(new J48());
+				lp.setSeed(1);
+				table.put(String.valueOf(c), lp);
+				table.get(String.valueOf(c)).build(trainData[c]);
 				
-				table.put(String.valueOf(p), new ClassifierChain(new J48(), randomChain(fullTrainData.getNumLabels())));
-				table.get(String.valueOf(p)).build(trainData[p]);
+				//Store object of classifier in the hard disk
+				utils.writeObject(table.get(String.valueOf(c)), "classifier"+c);
 				
+				//Set the corresponding data to null; it is no longer used
+				trainData[c] = null;
+				
+				//Get predictions of c-th classifier over all data
 				Prediction pred = new Prediction(fullTrainData.getNumInstances(), fullTrainData.getNumLabels());
 				for(int i=0; i<fullTrainData.getNumInstances(); i++) {
-					boolean[] bip = table.get(String.valueOf(p)).makePrediction(fullTrainData.getDataSet().get(i)).getBipartition();
+					boolean[] bip = table.get(String.valueOf(c)).makePrediction(fullTrainData.getDataSet().get(i)).getBipartition();
 					for(int j=0; j<fullTrainData.getNumLabels(); j++) {
 						if(bip[j]) {
 							pred.bip[i][j] = 1;
@@ -127,14 +142,14 @@ public class Alg extends SGE {
 					}
 				}
 				
-				tablePredictions.put(String.valueOf(p), pred);
-				
+				//Put predictions in table
+				tablePredictions.put(String.valueOf(c), pred);
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		
-		
+		//Set settings of provider, genetic operators and evaluator
 		((StringTreeCreator)provider).setMaxChildren(maxChildren);
 		((StringTreeCreator)provider).setMaxDepth(maxDepth);
 		((StringTreeCreator)provider).setnMax(nMLC);
@@ -145,7 +160,6 @@ public class Alg extends SGE {
 		
 		((Crossover)recombinator.getDecorated()).setMaxTreeDepth(maxDepth);
 		
-//		((Evaluator)evaluator).setClassifiers(classifiers);
 		((Evaluator)evaluator).setFullTrainData(fullTrainData);
 		((Evaluator)evaluator).setTablePredictions(tablePredictions);
 	}
@@ -153,44 +167,27 @@ public class Alg extends SGE {
 	@Override
 	protected void doInit() {
 		super.doInit();
-		
 	}
 	
-	int [] randomChain(int n) {
-		int[] chain = new int[n];
-		for(int i=0; i<n; i++) {
-			chain[i] = i;
-		}
-		
-		int r, aux;
-		for(int i=0; i<n; i++) {
-			r = randgen.choose(n);
-			aux = chain[r];
-			chain[r] = chain[i];
-			chain[i] = aux;
-		}
-		
-		return chain;
-	}
-	
+	@Override
 	protected void doControl()
 	{
 //		System.out.println("Generation " + generation);
 		
 		if (generation >= maxOfGenerations) {
-			EMLC ensemble = new EMLC(new ClassifierChain(new J48()));
+			LabelPowerset2 lp = new LabelPowerset2(new J48());
+			lp.setSeed(1);
 			String bestGenotype = ((StringTreeIndividual)bselector.select(bset, 1).get(0)).getGenotype();
-			ensemble.setGenotype(bestGenotype);
-			ensemble.setTable(table);
+			EMLC ensemble = new EMLC(lp, bestGenotype);
+			System.out.println(utils.getLeaves(bestGenotype));
 			
 			try {
 				ensemble.build(fullTrainData);
 				
-				ArrayList<Measure> measures = new ArrayList<Measure>();
-				measures.add(new ExampleBasedFMeasure());
-				Evaluation results = new Evaluation(measures, testData);
+				List<Measure> measures = prepareMeasures(fullTrainData);
+				Evaluation results = new Evaluation(measures, fullTrainData);
 				mulan.evaluation.Evaluator eval = new mulan.evaluation.Evaluator();
-				results = eval.evaluate(ensemble, testData);
+				results = eval.evaluate(ensemble, testData, measures);
 				System.out.println(results);
 				
 				
@@ -203,5 +200,47 @@ public class Alg extends SGE {
 			return;
 		}
 	}	
+	
+	private List<Measure> prepareMeasures(MultiLabelInstances data) {
+        List<Measure> measures = new ArrayList<Measure>();
+        // add example-based measures
+        measures.add(new HammingLoss());
+        measures.add(new ModHammingLoss());
+        measures.add(new SubsetAccuracy());
+        measures.add(new ExampleBasedPrecision());
+        measures.add(new ExampleBasedRecall());
+        measures.add(new ExampleBasedFMeasure());
+        measures.add(new ExampleBasedAccuracy());
+        measures.add(new ExampleBasedSpecificity());
+       // add label-based measures
+        int numOfLabels = data.getNumLabels();
+        measures.add(new MicroPrecision(numOfLabels));
+        measures.add(new MicroRecall(numOfLabels));
+        measures.add(new MicroFMeasure(numOfLabels));
+        measures.add(new MicroSpecificity(numOfLabels));
+	    measures.add(new MacroPrecision(numOfLabels));
+	    measures.add(new MacroRecall(numOfLabels));
+	    measures.add(new MacroFMeasure(numOfLabels));
+	    measures.add(new MacroSpecificity(numOfLabels));
+      
+      // add ranking-based measures if applicable
+      // add ranking based measures
+//      measures.add(new AveragePrecision());
+//      measures.add(new Coverage());
+//      measures.add(new OneError());
+//      measures.add(new IsError());
+//      measures.add(new ErrorSetSize());
+//      measures.add(new RankingLoss());
+      
+      // add confidence measures if applicable
+//      measures.add(new MeanAveragePrecision(numOfLabels));
+//      measures.add(new GeometricMeanAveragePrecision(numOfLabels));
+//      measures.add(new MeanAverageInterpolatedPrecision(numOfLabels, 10));
+//      measures.add(new GeometricMeanAverageInterpolatedPrecision(numOfLabels, 10));
+	    measures.add(new MicroAUC(numOfLabels));
+//      measures.add(new MacroAUC(numOfLabels));
+
+        return measures;
+    }
 	
 }
