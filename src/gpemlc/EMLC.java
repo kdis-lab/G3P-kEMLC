@@ -74,9 +74,11 @@ public class EMLC extends MultiLabelMetaLearner {
 		
 		//Load each learner from hard disk
 		for(int i=0; i<leaves.size(); i++) {
-			learners.put(String.valueOf(leaves.get(i)), (MultiLabelLearnerBase) utils.loadObject("classifier"+leaves.get(i)));
+			learners.put(String.valueOf(leaves.get(i)), (MultiLabelLearnerBase) utils.loadObject("mlc/classifier"+leaves.get(i)+".mlc"));
 		}
 	}
+	
+	
 
 	@Override
 	protected MultiLabelOutput makePredictionInternal(Instance instance) throws Exception, InvalidDataException {

@@ -338,4 +338,16 @@ public class Utils {
         return obj;
     }
 	
+	/**
+	 * Remove all files in a directory (not subdirectories)
+	 * 
+	 * @param dir Directory file
+	 */
+	void purgeDirectory(File dir) {
+		for (File file: dir.listFiles()) {
+			if (!file.isDirectory()) {
+				file.delete();
+			}
+		}
+	}
 }

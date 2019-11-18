@@ -1,5 +1,6 @@
 package gpemlc;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
@@ -116,6 +117,12 @@ public class Alg extends SGE {
 			fullTrainData = new MultiLabelInstances(datasetTrainFileName, datasetXMLFileName);
 			testData = new MultiLabelInstances(datasetTestFileName, datasetXMLFileName);
 
+			//Create folder for classifiers if it does not exist
+			File f = new File("mlc/");
+			if (!f.exists()) {
+			   f.mkdir();
+			}
+			
 			for(int c=0; c<nMLC; c++) {
 				//Sample c-th data
 				currentTrainData = MulanUtils.sampleData(fullTrainData, sampleRatio, randgen);
@@ -127,7 +134,8 @@ public class Alg extends SGE {
 				table.get(String.valueOf(c)).build(currentTrainData);
 				
 				//Store object of classifier in the hard disk
-				utils.writeObject(table.get(String.valueOf(c)), "classifier"+c);
+				
+				utils.writeObject(table.get(String.valueOf(c)), "mlc/classifier"+c+".mlc");
 				
 				//Get predictions of c-th classifier over all data
 				Prediction pred = new Prediction(fullTrainData.getNumInstances(), fullTrainData.getNumLabels());
@@ -186,6 +194,9 @@ public class Alg extends SGE {
 			
 			try {
 				ensemble.build(fullTrainData);
+				
+				//After building the ensemble, we can remove all the classifiers built and stored in hard disk
+				utils.purgeDirectory(new File("mlc/"));
 				
 				List<Measure> measures = prepareMeasures(fullTrainData);
 				Evaluation results = new Evaluation(measures, fullTrainData);
