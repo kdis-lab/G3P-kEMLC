@@ -182,28 +182,32 @@ public class Alg extends SGE {
 	
 	@Override
 	protected void doControl()
-	{
-//		System.out.println("Generation " + generation);
-		
+	{		
 		if (generation >= maxOfGenerations) {
-			LabelPowerset2 lp = new LabelPowerset2(new J48());
-			lp.setSeed(1);
+			//Get genotype of best individual
 			String bestGenotype = ((StringTreeIndividual)bselector.select(bset, 1).get(0)).getGenotype();
+			
+			//Generate ensemble object
+			LabelPowerset2 lp = new LabelPowerset2(new J48());
+			lp.setSeed(1);			
 			EMLC ensemble = new EMLC(lp, bestGenotype);
+			
+			//Print the leaves; i.e., different classifiers used in the ensemble
 			System.out.println(utils.getLeaves(bestGenotype));
 			
 			try {
+				//Build the ensemble
 				ensemble.build(fullTrainData);
 				
 				//After building the ensemble, we can remove all the classifiers built and stored in hard disk
 				utils.purgeDirectory(new File("mlc/"));
 				
+				//Evaluate with test data
 				List<Measure> measures = prepareMeasures(fullTrainData);
 				Evaluation results = new Evaluation(measures, fullTrainData);
 				mulan.evaluation.Evaluator eval = new mulan.evaluation.Evaluator();
 				results = eval.evaluate(ensemble, testData, measures);
 				System.out.println(results);
-				
 				
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
@@ -215,6 +219,12 @@ public class Alg extends SGE {
 		}
 	}	
 	
+	/**
+	 * Prepare measures for evaluation
+	 * 
+	 * @param data Multi-label dataset
+	 * @return List of measures
+	 */
 	private List<Measure> prepareMeasures(MultiLabelInstances data) {
         List<Measure> measures = new ArrayList<Measure>();
         // add example-based measures
