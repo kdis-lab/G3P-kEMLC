@@ -50,7 +50,7 @@ public class Alg extends SGE {
 	/**
 	 * Training datasets
 	 */
-	MultiLabelInstances [] trainData;
+	MultiLabelInstances currentTrainData;
 	
 	/**
 	 * Ratio of instances sampled at each train data
@@ -110,27 +110,24 @@ public class Alg extends SGE {
 		maxDepth = configuration.getInt("max-depth");
 		
 		fullTrainData = null;
+		currentTrainData = null;
 		testData = null;
 		try {
 			fullTrainData = new MultiLabelInstances(datasetTrainFileName, datasetXMLFileName);
 			testData = new MultiLabelInstances(datasetTestFileName, datasetXMLFileName);
-			
-			trainData = new MultiLabelInstances[nMLC];
+
 			for(int c=0; c<nMLC; c++) {
 				//Sample c-th data
-				trainData[c] = MulanUtils.sampleData(fullTrainData, sampleRatio, randgen);
+				currentTrainData = MulanUtils.sampleData(fullTrainData, sampleRatio, randgen);
 				
 				//Build classifier with c-th data and store in the table
 				LabelPowerset2 lp = new LabelPowerset2(new J48());
 				lp.setSeed(1);
 				table.put(String.valueOf(c), lp);
-				table.get(String.valueOf(c)).build(trainData[c]);
+				table.get(String.valueOf(c)).build(currentTrainData);
 				
 				//Store object of classifier in the hard disk
 				utils.writeObject(table.get(String.valueOf(c)), "classifier"+c);
-				
-				//Set the corresponding data to null; it is no longer used
-				trainData[c] = null;
 				
 				//Get predictions of c-th classifier over all data
 				Prediction pred = new Prediction(fullTrainData.getNumInstances(), fullTrainData.getNumLabels());
@@ -149,6 +146,8 @@ public class Alg extends SGE {
 				//Put predictions in table
 				tablePredictions.put(String.valueOf(c), pred);
 			}
+			
+			currentTrainData = null;
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
