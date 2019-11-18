@@ -35,12 +35,12 @@ public class Alg extends SGE {
 	/**
 	 * Max number of children at each node
 	 */
-	int maxChildren = 3;
+	int maxChildren;
 	
 	/**
 	 * Max depth of the tree
 	 */
-	int maxDepth = 3;
+	int maxDepth;
 	
 	/**
 	 * Full training dataset
@@ -65,7 +65,7 @@ public class Alg extends SGE {
 	/**
 	 * Number of MLC
 	 */
-	int nMLC = 20;
+	int nMLC;
 	
 	/**
 	 * Utils
@@ -104,6 +104,10 @@ public class Alg extends SGE {
 		String datasetXMLFileName = configuration.getString("dataset.xml");
 		
 		sampleRatio = configuration.getDouble("sampling-ratio");
+		
+		nMLC = configuration.getInt("different-classifiers");
+		maxChildren = configuration.getInt("max-children");
+		maxDepth = configuration.getInt("max-depth");
 		
 		fullTrainData = null;
 		testData = null;
