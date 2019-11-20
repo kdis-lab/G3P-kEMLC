@@ -2,7 +2,6 @@ package gpemlc;
 
 import java.io.File;
 import java.util.Hashtable;
-import java.util.List;
 
 import org.apache.commons.configuration.Configuration;
 
@@ -15,8 +14,6 @@ import mulan.classifier.transformation.ClassifierChain;
 import mulan.classifier.transformation.LabelPowerset2;
 import mulan.classifier.transformation.PrunedSets2;
 import mulan.data.MultiLabelInstances;
-import mulan.evaluation.Evaluation;
-import mulan.evaluation.measure.*;
 import net.sf.jclec.algorithm.classic.SGE;
 import net.sf.jclec.selector.BettersSelector;
 import net.sf.jclec.stringtree.StringTreeCreator;
@@ -323,18 +320,7 @@ public class Alg extends SGE {
 				ensemble.build(fullTrainData);
 				
 				//After building the ensemble, we can remove all the classifiers built and stored in hard disk
-				utils.purgeDirectory(new File("mlc/"));
-				
-				//Evaluate with test data
-				List<Measure> measures = utils.prepareMeasures(fullTrainData);
-				Evaluation results = new Evaluation(measures, fullTrainData);
-				mulan.evaluation.Evaluator eval = new mulan.evaluation.Evaluator();
-				if(classifierType == ClassifierType.LP || classifierType == ClassifierType.PS) {
-					ensemble.resetSeed(seed);
-				}
-				results = eval.evaluate(ensemble, testData, measures);
-//				System.out.println(results);
-				
+				utils.purgeDirectory(new File("mlc/"));				
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
