@@ -10,6 +10,7 @@ import mulan.classifier.MultiLabelLearner;
 import mulan.classifier.MultiLabelLearnerBase;
 import mulan.classifier.MultiLabelOutput;
 import mulan.classifier.meta.MultiLabelMetaLearner;
+import mulan.classifier.transformation.LabelPowerset2;
 import mulan.data.MultiLabelInstances;
 import weka.core.Instance;
 import weka.core.TechnicalInformation;
@@ -93,6 +94,15 @@ public class EMLC extends MultiLabelMetaLearner {
 		this.useConfidences = useConfidences;
 	}	
 
+	/**
+	 * Reset seed for each member
+	 */
+	public void resetSeed(int seed) {
+		for(String key : learners.keySet()) {
+			((LabelPowerset2)learners.get(key)).setSeed(seed);
+		}
+	}
+	
 	@Override
 	protected void buildInternal(MultiLabelInstances trainingSet) throws Exception {
 		learners = new Hashtable<String, MultiLabelLearnerBase>(leaves.size());

@@ -7,9 +7,40 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import mulan.data.MultiLabelInstances;
+import mulan.evaluation.measure.AveragePrecision;
+import mulan.evaluation.measure.Coverage;
+import mulan.evaluation.measure.ErrorSetSize;
+import mulan.evaluation.measure.ExampleBasedAccuracy;
+import mulan.evaluation.measure.ExampleBasedFMeasure;
+import mulan.evaluation.measure.ExampleBasedPrecision;
+import mulan.evaluation.measure.ExampleBasedRecall;
+import mulan.evaluation.measure.ExampleBasedSpecificity;
+import mulan.evaluation.measure.GeometricMeanAverageInterpolatedPrecision;
+import mulan.evaluation.measure.GeometricMeanAveragePrecision;
+import mulan.evaluation.measure.HammingLoss;
+import mulan.evaluation.measure.IsError;
+import mulan.evaluation.measure.MacroAUC;
+import mulan.evaluation.measure.MacroFMeasure;
+import mulan.evaluation.measure.MacroPrecision;
+import mulan.evaluation.measure.MacroRecall;
+import mulan.evaluation.measure.MacroSpecificity;
+import mulan.evaluation.measure.MeanAverageInterpolatedPrecision;
+import mulan.evaluation.measure.MeanAveragePrecision;
+import mulan.evaluation.measure.Measure;
+import mulan.evaluation.measure.MicroAUC;
+import mulan.evaluation.measure.MicroFMeasure;
+import mulan.evaluation.measure.MicroPrecision;
+import mulan.evaluation.measure.MicroRecall;
+import mulan.evaluation.measure.MicroSpecificity;
+import mulan.evaluation.measure.ModHammingLoss;
+import mulan.evaluation.measure.OneError;
+import mulan.evaluation.measure.RankingLoss;
+import mulan.evaluation.measure.SubsetAccuracy;
 import net.sf.jclec.util.random.IRandGen;
 
 /**
@@ -423,5 +454,64 @@ public class Utils {
 		}
 		
 		return perm;
+	}
+	
+	/**
+	 * Prepare measures for evaluation
+	 * 
+	 * @param data Multi-label dataset
+	 * @return List of measures
+	 */
+	public List<Measure> prepareMeasures(MultiLabelInstances data) {
+        List<Measure> measures = new ArrayList<Measure>();
+        // add example-based measures
+        measures.add(new HammingLoss());
+        measures.add(new ModHammingLoss());
+        measures.add(new SubsetAccuracy());
+        measures.add(new ExampleBasedPrecision());
+        measures.add(new ExampleBasedRecall());
+        measures.add(new ExampleBasedFMeasure());
+        measures.add(new ExampleBasedAccuracy());
+        measures.add(new ExampleBasedSpecificity());
+        // add label-based measures
+        int numOfLabels = data.getNumLabels();
+        measures.add(new MicroPrecision(numOfLabels));
+        measures.add(new MicroRecall(numOfLabels));
+        measures.add(new MicroFMeasure(numOfLabels));
+        measures.add(new MicroSpecificity(numOfLabels));
+	    measures.add(new MacroPrecision(numOfLabels));
+	    measures.add(new MacroRecall(numOfLabels));
+	    measures.add(new MacroFMeasure(numOfLabels));
+	    measures.add(new MacroSpecificity(numOfLabels));
+      
+	    // add ranking-based measures if applicable
+	    // add ranking based measures
+	    measures.add(new AveragePrecision());
+	    measures.add(new Coverage());
+	    measures.add(new OneError());
+	    measures.add(new IsError());
+	    measures.add(new ErrorSetSize());
+	    measures.add(new RankingLoss());
+      
+	    // add confidence measures if applicable
+	    measures.add(new MeanAveragePrecision(numOfLabels));
+	    measures.add(new GeometricMeanAveragePrecision(numOfLabels));
+	    measures.add(new MeanAverageInterpolatedPrecision(numOfLabels, 10));
+	    measures.add(new GeometricMeanAverageInterpolatedPrecision(numOfLabels, 10));
+	    measures.add(new MicroAUC(numOfLabels));
+	    measures.add(new MacroAUC(numOfLabels));
+
+	    return measures;
+    }
+	
+	/**
+	 * Check if a file exists
+	 * 
+	 * @param filename Name of the file
+	 * @return true if the file exists, false otherwise
+	 */
+	boolean fileExist(String filename) {
+		File tempFile = new File(filename);
+		return tempFile.exists();
 	}
 }

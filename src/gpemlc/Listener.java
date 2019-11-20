@@ -1,5 +1,6 @@
-package net.sf.jclec.listener;
+package gpemlc;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -16,11 +17,17 @@ import net.sf.jclec.IAlgorithmListener;
 
 import net.sf.jclec.algorithm.PopulationAlgorithm;
 import net.sf.jclec.fitness.SimpleValueFitness;
+import net.sf.jclec.stringtree.StringTreeIndividual;
 import net.sf.jclec.util.IndividualStatistics;
 
 import org.apache.commons.configuration.Configuration;
 
 import org.apache.commons.lang.builder.EqualsBuilder;
+
+import gpemlc.Utils.ClassifierType;
+import mulan.data.MultiLabelInstances;
+import mulan.evaluation.Evaluation;
+import mulan.evaluation.measure.Measure;
 
 /**
  * This class is a listener for PopulationAlgorithms, that performs a report of 
@@ -29,7 +36,7 @@ import org.apache.commons.lang.builder.EqualsBuilder;
  * @author Sebastian Ventura
  */
 
-public class PopulationReporter implements IAlgorithmListener, IConfigure 
+public class Listener implements IAlgorithmListener, IConfigure 
 {
 	/////////////////////////////////////////////////////////////////
 	// --------------------------------------- Serialization constant
@@ -63,6 +70,16 @@ public class PopulationReporter implements IAlgorithmListener, IConfigure
 	
 	private boolean saveCompletePopulation;
 	
+	Utils utils = new Utils();		
+	String bestLeavesFilename = "reports/bestLeaves.csv";
+	String bestMaxDepthFilename = "reports/bestMaxDepth.csv";
+	String bestFilename = "reports/bestFitness.csv";
+	String medianFilename = "reports/medianFitness.csv";
+	String avgFilename = "reports/avgFitness.csv";
+	String worstFilename = "reports/worstFitness.csv";
+	
+	String classificationReportFilename = "reports/testResults.csv";
+	
 	/////////////////////////////////////////////////////////////////
 	// ------------------------------------------- Internal variables
 	/////////////////////////////////////////////////////////////////
@@ -83,7 +100,7 @@ public class PopulationReporter implements IAlgorithmListener, IConfigure
 	// ------------------------------------------------- Constructors
 	/////////////////////////////////////////////////////////////////	
 	
-	public PopulationReporter() 
+	public Listener() 
 	{
 		super();
 	}
@@ -209,6 +226,78 @@ public class PopulationReporter implements IAlgorithmListener, IConfigure
 	{
 		// Do last generation report
 		doIterationReport((PopulationAlgorithm) event.getAlgorithm(), true);
+		
+		BufferedWriter bestLeavesWriter = null;
+		BufferedWriter bestMaxDepthWriter = null;
+		BufferedWriter bestWriter = null;
+		BufferedWriter medianWriter = null;
+		BufferedWriter avgWriter = null;
+		BufferedWriter worstWriter = null;
+		BufferedWriter classificationReportWriter = null;
+		
+		try {
+			bestLeavesWriter = new BufferedWriter(new FileWriter(bestLeavesFilename, true));
+			bestLeavesWriter.write("\n");
+			bestLeavesWriter.close();
+			
+			bestMaxDepthWriter = new BufferedWriter(new FileWriter(bestMaxDepthFilename, true));
+			bestMaxDepthWriter.write("\n");
+			bestMaxDepthWriter.close();
+			
+			bestWriter = new BufferedWriter(new FileWriter(bestFilename, true));
+			bestWriter.write("\n");
+			bestWriter.close();
+			
+			medianWriter = new BufferedWriter(new FileWriter(medianFilename, true));
+			medianWriter.write("\n");
+			medianWriter.close();
+			
+			avgWriter = new BufferedWriter(new FileWriter(avgFilename, true));
+			avgWriter.write("\n");
+			avgWriter.close();
+			
+			worstWriter = new BufferedWriter(new FileWriter(worstFilename, true));
+			worstWriter.write("\n");
+			worstWriter.close();
+		} catch(Exception e) {
+			e.printStackTrace();
+			System.exit(-1);
+		}
+		
+		EMLC ensemble = ((Alg)event.getAlgorithm()).getEnsemble();
+		MultiLabelInstances testData = ((Alg)event.getAlgorithm()).getTestData();
+		List<Measure> measures = utils.prepareMeasures(testData);
+		Evaluation results;
+		try {
+			results = new Evaluation(measures, testData);
+			mulan.evaluation.Evaluator eval = new mulan.evaluation.Evaluator();
+			
+			if(((Alg)event.getAlgorithm()).getClassifierType() == ClassifierType.LP || ((Alg)event.getAlgorithm()).getClassifierType() == ClassifierType.PS) {
+				ensemble.resetSeed(((Alg)event.getAlgorithm()).getSeed());
+			}
+			results = eval.evaluate(ensemble, testData, measures);
+			
+			//If the file didnt exist, print the header
+			boolean printHeader = false;
+			if(!utils.fileExist(classificationReportFilename)) {
+				printHeader = true;
+			}
+			
+			classificationReportWriter = new BufferedWriter(new FileWriter(classificationReportFilename, true));
+			if(printHeader) {
+				classificationReportWriter.write(" ; ");
+				for(int i=0; i<results.getMeasures().size(); i++) {
+					classificationReportWriter.write(results.getMeasures().get(i).getName() + "; ");
+				}
+				classificationReportWriter.write("\n");
+			}
+			
+			classificationReportWriter.write(testData.getDataSet().relationName() + "_" + ((Alg)event.getAlgorithm()).getSeed() + results.toCSV().replace(",", ".") + "\n");
+			classificationReportWriter.close();
+		} catch (Exception e1) {
+			e1.printStackTrace();
+		}
+		
 		// Close report file if necessary
 		if (reportOnFile  && reportFile != null) {
 			try {
@@ -231,8 +320,8 @@ public class PopulationReporter implements IAlgorithmListener, IConfigure
 	@Override
 	public boolean equals(Object other)
 	{
-		if (other instanceof PopulationReporter) {
-			PopulationReporter cother = (PopulationReporter) other;
+		if (other instanceof Listener) {
+			Listener cother = (Listener) other;
 			EqualsBuilder eb = new EqualsBuilder();
 			// reportTitle
 			eb.append(reportTitle, cother.reportTitle);
@@ -263,25 +352,7 @@ public class PopulationReporter implements IAlgorithmListener, IConfigure
 		// Check if this is correct generation
 		if (!force && generation%reportFrequency != 0) {
 			return;
-		}		
-		
-		// Save population individuals (if this option was chosen)
-		if (saveCompletePopulation) {
-			String filename = "generation"+generation+".individuals.txt";
-			File file = new File(reportDirectory, filename);
-			FileWriter filewriter;
-			try {
-				filewriter = new FileWriter(file);
-				for (IIndividual ind : inhabitants) {
-					filewriter.flush();
-					filewriter.write(ind+"\n");
-				}
-				filewriter.close();
-			} 
-			catch (IOException e) {
-				e.printStackTrace();
-			}			
-		}		
+		}			
 		
 		// Do population report
 		StringBuffer sb = new StringBuffer("Generation " + generation + " Report\n");
@@ -313,6 +384,42 @@ public class PopulationReporter implements IAlgorithmListener, IConfigure
 			catch (IOException e) {
 				e.printStackTrace();
 			}
+		}
+		
+		BufferedWriter bestLeavesWriter = null;
+		BufferedWriter bestMaxDepthWriter = null;
+		BufferedWriter bestWriter = null;
+		BufferedWriter medianWriter = null;
+		BufferedWriter avgWriter = null;
+		BufferedWriter worstWriter = null;
+		
+		try {
+			bestLeavesWriter = new BufferedWriter(new FileWriter(bestLeavesFilename, true));
+			bestLeavesWriter.write(utils.countLeaves(((StringTreeIndividual)best).getGenotype()) + "; ");
+			bestLeavesWriter.close();
+			
+			bestMaxDepthWriter = new BufferedWriter(new FileWriter(bestMaxDepthFilename, true));
+			bestMaxDepthWriter.write(utils.calculateTreeMaxDepth(((StringTreeIndividual)best).getGenotype()) + "; ");
+			bestMaxDepthWriter.close();
+			
+			bestWriter = new BufferedWriter(new FileWriter(bestFilename, true));
+			bestWriter.write(((SimpleValueFitness)best.getFitness()).getValue() + "; ");
+			bestWriter.close();
+			
+			medianWriter = new BufferedWriter(new FileWriter(medianFilename, true));
+			medianWriter.write(((SimpleValueFitness)median.getFitness()).getValue() + "; ");
+			medianWriter.close();
+			
+			avgWriter = new BufferedWriter(new FileWriter(avgFilename, true));
+			avgWriter.write(avgvar[0] + "; ");
+			avgWriter.close();
+			
+			worstWriter = new BufferedWriter(new FileWriter(worstFilename, true));
+			worstWriter.write(((SimpleValueFitness)worst.getFitness()).getValue() + "; ");
+			worstWriter.close();
+		} catch(Exception e) {
+			e.printStackTrace();
+			System.exit(-1);
 		}
 	}
 }

@@ -1,7 +1,6 @@
 package gpemlc;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
 
@@ -14,7 +13,7 @@ import mulan.classifier.MultiLabelLearnerBase;
 import mulan.classifier.transformation.BinaryRelevance;
 import mulan.classifier.transformation.ClassifierChain;
 import mulan.classifier.transformation.LabelPowerset2;
-import mulan.classifier.transformation.PrunedSets;
+import mulan.classifier.transformation.PrunedSets2;
 import mulan.data.MultiLabelInstances;
 import mulan.evaluation.Evaluation;
 import mulan.evaluation.measure.*;
@@ -113,6 +112,47 @@ public class Alg extends SGE {
 	 */
 	Utils.ClassifierType classifierType;
 	
+	/**
+	 * Final ensemble
+	 */
+	EMLC ensemble;
+	
+	/**
+	 * Getter for test data
+	 * 
+	 * @return Test data
+	 */
+	public MultiLabelInstances getTestData() {
+		return testData;
+	}
+	
+	/**
+	 * Getter for the seed
+	 * 
+	 * @return Seed
+ 	 */
+	public int getSeed() {
+		return seed;
+	}
+	
+	/**
+	 * Getter for classifierType
+	 * 
+	 * @return classifierType
+	 */
+	public Utils.ClassifierType getClassifierType() {
+		return classifierType;
+	}
+	
+	/**
+	 * Getter for the ensemble
+	 * 
+	 * @return Ensemble
+	 */
+	public EMLC getEnsemble() {
+		return ensemble;
+	}
+	
 	@Override
 	public void configure(Configuration configuration) {
 		super.configure(configuration);
@@ -176,7 +216,7 @@ public class Alg extends SGE {
 					
 				case "PS":
 					classifierType = ClassifierType.PS;
-					learner = new PrunedSets();
+					learner = new PrunedSets2();
 					break;
 					
 				case "KLABELSET":
@@ -260,7 +300,7 @@ public class Alg extends SGE {
 				break;
 				
 			case PS:
-				learner = new PrunedSets();
+				learner = new PrunedSets2();
 				break;
 				
 			case kLabelset:
@@ -273,7 +313,7 @@ public class Alg extends SGE {
 			}
 			
 			//Generate ensemble object
-			EMLC ensemble = new EMLC(learner, bestGenotype, useConfidences);
+			ensemble = new EMLC(learner, bestGenotype, useConfidences);
 			
 			//Print the leaves; i.e., different classifiers used in the ensemble
 			System.out.println(utils.getLeaves(bestGenotype));
@@ -286,9 +326,12 @@ public class Alg extends SGE {
 				utils.purgeDirectory(new File("mlc/"));
 				
 				//Evaluate with test data
-				List<Measure> measures = prepareMeasures(fullTrainData);
+				List<Measure> measures = utils.prepareMeasures(fullTrainData);
 				Evaluation results = new Evaluation(measures, fullTrainData);
 				mulan.evaluation.Evaluator eval = new mulan.evaluation.Evaluator();
+				if(classifierType == ClassifierType.LP || classifierType == ClassifierType.PS) {
+					ensemble.resetSeed(seed);
+				}
 				results = eval.evaluate(ensemble, testData, measures);
 				System.out.println(results);
 				
@@ -300,53 +343,5 @@ public class Alg extends SGE {
 			return;
 		}
 	}	
-	
-	/**
-	 * Prepare measures for evaluation
-	 * 
-	 * @param data Multi-label dataset
-	 * @return List of measures
-	 */
-	private List<Measure> prepareMeasures(MultiLabelInstances data) {
-        List<Measure> measures = new ArrayList<Measure>();
-        // add example-based measures
-        measures.add(new HammingLoss());
-        measures.add(new ModHammingLoss());
-        measures.add(new SubsetAccuracy());
-        measures.add(new ExampleBasedPrecision());
-        measures.add(new ExampleBasedRecall());
-        measures.add(new ExampleBasedFMeasure());
-        measures.add(new ExampleBasedAccuracy());
-        measures.add(new ExampleBasedSpecificity());
-        // add label-based measures
-        int numOfLabels = data.getNumLabels();
-        measures.add(new MicroPrecision(numOfLabels));
-        measures.add(new MicroRecall(numOfLabels));
-        measures.add(new MicroFMeasure(numOfLabels));
-        measures.add(new MicroSpecificity(numOfLabels));
-	    measures.add(new MacroPrecision(numOfLabels));
-	    measures.add(new MacroRecall(numOfLabels));
-	    measures.add(new MacroFMeasure(numOfLabels));
-	    measures.add(new MacroSpecificity(numOfLabels));
-      
-	    // add ranking-based measures if applicable
-	    // add ranking based measures
-	    measures.add(new AveragePrecision());
-	    measures.add(new Coverage());
-	    measures.add(new OneError());
-	    measures.add(new IsError());
-	    measures.add(new ErrorSetSize());
-	    measures.add(new RankingLoss());
-      
-	    // add confidence measures if applicable
-	    measures.add(new MeanAveragePrecision(numOfLabels));
-	    measures.add(new GeometricMeanAveragePrecision(numOfLabels));
-	    measures.add(new MeanAverageInterpolatedPrecision(numOfLabels, 10));
-	    measures.add(new GeometricMeanAverageInterpolatedPrecision(numOfLabels, 10));
-	    measures.add(new MicroAUC(numOfLabels));
-	    measures.add(new MacroAUC(numOfLabels));
-
-	    return measures;
-    }
 	
 }
