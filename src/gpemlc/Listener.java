@@ -172,7 +172,7 @@ public class Listener implements IAlgorithmListener, IConfigure
 		int reportFrequency = settings.getInt("report-frequency", 10); 
 		setReportFrequency(reportFrequency);
 		// Set console report (default on)
-		boolean reportOnConsole = settings.getBoolean("report-on-console", true);
+		boolean reportOnConsole = settings.getBoolean("report-on-console", false);
 		setReportOnCconsole(reportOnConsole);
 		// Set file report (default off)
 		boolean reportOnFile = settings.getBoolean("report-on-file", false);

@@ -333,7 +333,7 @@ public class Alg extends SGE {
 					ensemble.resetSeed(seed);
 				}
 				results = eval.evaluate(ensemble, testData, measures);
-				System.out.println(results);
+//				System.out.println(results);
 				
 			} catch (Exception e) {
 				e.printStackTrace();
