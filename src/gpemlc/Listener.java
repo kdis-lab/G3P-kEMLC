@@ -292,7 +292,7 @@ public class Listener implements IAlgorithmListener, IConfigure
 				classificationReportWriter.write("\n");
 			}
 			
-			classificationReportWriter.write(testData.getDataSet().relationName() + "_" + ((Alg)event.getAlgorithm()).getSeed() + results.toCSV().replace(",", ".") + "\n");
+			classificationReportWriter.write(testData.getDataSet().relationName() + "_" + ((Alg)event.getAlgorithm()).getSeed() + "; " + results.toCSV().replace(",", ".") + "\n");
 			classificationReportWriter.close();
 		} catch (Exception e1) {
 			e1.printStackTrace();
