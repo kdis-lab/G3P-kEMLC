@@ -80,6 +80,8 @@ public class Listener implements IAlgorithmListener, IConfigure
 	
 	String classificationReportFilename = "reports/testResults.csv";
 	
+	private long time_start;
+	
 	/////////////////////////////////////////////////////////////////
 	// ------------------------------------------- Internal variables
 	/////////////////////////////////////////////////////////////////
@@ -187,6 +189,8 @@ public class Listener implements IAlgorithmListener, IConfigure
 	@Override
 	public void algorithmStarted(AlgorithmEvent event) 
 	{
+		time_start = System.currentTimeMillis();
+		
 		// Create report title for this instance
 		String dateString = 
 			new Date(System.currentTimeMillis()).toString().replace(':','.');
@@ -224,6 +228,8 @@ public class Listener implements IAlgorithmListener, IConfigure
 	@Override
 	public void algorithmFinished(AlgorithmEvent event) 
 	{
+		long time = System.currentTimeMillis() - time_start;
+		
 		// Do last generation report
 		doIterationReport((PopulationAlgorithm) event.getAlgorithm(), true);
 		
@@ -289,10 +295,10 @@ public class Listener implements IAlgorithmListener, IConfigure
 				for(int i=0; i<results.getMeasures().size(); i++) {
 					classificationReportWriter.write(results.getMeasures().get(i).getName() + "; ");
 				}
-				classificationReportWriter.write("\n");
+				classificationReportWriter.write("time(ms);\n");
 			}
 			
-			classificationReportWriter.write(testData.getDataSet().relationName() + "_" + ((Alg)event.getAlgorithm()).getSeed() + "; " + results.toCSV().replace(",", ".") + "\n");
+			classificationReportWriter.write(testData.getDataSet().relationName() + "_" + ((Alg)event.getAlgorithm()).getSeed() + "; " + results.toCSV().replace(",", ".") + time + ";\n");
 			classificationReportWriter.close();
 		} catch (Exception e1) {
 			e1.printStackTrace();
