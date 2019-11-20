@@ -1,6 +1,6 @@
 package gpemlc;
 
-import java.util.Arrays;
+import java.text.DecimalFormat;
 
 /**
  * Class implementing the predictions of a given classifier
@@ -21,9 +21,9 @@ public class Prediction {
 	public int nLabels;
 	
 	/**
-	 * Prediction as bipartition
+	 * Prediction (double to be able to store confidences)
 	 */
-	public byte[][] bip;
+	public double[][] pred;
 	
 	/**
 	 * Default constructor
@@ -31,7 +31,7 @@ public class Prediction {
 	public Prediction() {
 		nInstances = -1;
 		nLabels = -1;
-		bip = null;
+		pred = null;
 	}
 	
 	/**
@@ -43,18 +43,63 @@ public class Prediction {
 	public Prediction(int nInstances, int nLabels) {
 		this.nInstances = nInstances;
 		this.nLabels = nLabels;
-		this.bip = new byte[nInstances][nLabels];
+		this.pred = new double[nInstances][nLabels];
 	}
 	
 	/**
 	 * Constructor with parameter
 	 * 
-	 * @param prediction Prediction of the classifier as bipartition
+	 * @param prediction Prediction of the classifier (allows confidence values)
 	 */
-	public Prediction(byte[][] prediction) {
+	public Prediction(double[][] prediction) {
 		this.nInstances = prediction.length;
 		this.nLabels = prediction[0].length;
-		this.bip = prediction.clone();
+		this.pred = prediction.clone();
+	}
+	
+	/**
+	 * Transform the predictions as confidences into bipartitions given a threshold
+	 * 
+	 * @param threshold Threshold to determine relevant and irrelevant labels
+	 * @return Bipartitions
+	 */
+	public boolean[][] getBipartition(double threshold) {
+		boolean[][] bipartition = new boolean[nInstances][nLabels];
+		
+		for(int i=0; i<nInstances; i++) {
+			for(int j=0; j<nLabels; j++) {
+				if(this.pred[i][j] >= threshold) {
+					bipartition[i][j] = true;
+				}
+				else {
+					bipartition[i][j] = false;
+				}
+			}
+		}
+		
+		return bipartition;
+	}
+	
+	/**
+	 * Transform the predictions as confidences for a given instance into bipartitions given a threshold
+	 * 
+	 * @param instance Instance to transform prediction into bipartition
+	 * @param threshold Threshold to determine relevant and irrelevant labels
+	 * @return Bipartitions
+	 */
+	public boolean[] getBipartition(int instance, double threshold) {
+		boolean[] bipartition = new boolean[nLabels];
+		
+		for(int j=0; j<nLabels; j++) {
+			if(this.pred[instance][j] >= threshold) {
+				bipartition[j] = true;
+			}
+			else {
+				bipartition[j] = false;
+			}
+		}
+		
+		return bipartition;
 	}
 	
 	/**
@@ -70,7 +115,7 @@ public class Prediction {
 		
 		for(int i=0; i<nInstances; i++) {
 			for(int j=0; j<nLabels; j++) {
-				this.bip[i][j] += other.bip[i][j];
+				this.pred[i][j] += other.pred[i][j];
 			}
 		}
 	}
@@ -78,17 +123,17 @@ public class Prediction {
 	/**
 	 * Add a prediction to the current one
 	 * 
-	 * @param otherBip Bipartitio to add to the current one
+	 * @param otherBip Prediction to add to the current one
 	 */
-	public void addPrediction(byte[][] otherBip) {
-		if(this.nInstances != otherBip.length || this.nLabels != otherBip[0].length) {
+	public void addPrediction(double[][] otherPred) {
+		if(this.nInstances != otherPred.length || this.nLabels != otherPred[0].length) {
 			System.out.println("The number of instances or labels is not the same in both predictions.");
 			System.exit(-1);
 		}
 		
 		for(int i=0; i<nInstances; i++) {
 			for(int j=0; j<nLabels; j++) {
-				this.bip[i][j] += otherBip[i][j];
+				this.pred[i][j] += otherPred[i][j];
 			}
 		}
 	}
@@ -103,22 +148,40 @@ public class Prediction {
 	public void divideAndThresholdPrediction(int nPreds, double threshold) {
 		for(int i=0; i<nInstances; i++) {
 			for(int j=0; j<nLabels; j++) {
-				if((this.bip[i][j]*1.0)/nPreds >= threshold) {
-					this.bip[i][j] = 1;
+				if((this.pred[i][j])/nPreds >= threshold) {
+					this.pred[i][j] = 1;
 				}
 				else {
-					this.bip[i][j] = 0;
+					this.pred[i][j] = 0;
 				}
+			}
+		}
+	}
+	
+	/**
+	 * Divide the current prediction by the number of total predictions
+	 * 
+	 * @param nPreds Number of predictions to divide
+	 */
+	public void divide(int nPreds) {
+		for(int i=0; i<nInstances; i++) {
+			for(int j=0; j<nLabels; j++) {
+				this.pred[i][j] /= nPreds;
 			}
 		}
 	}
 	
 	@Override
 	public String toString() {
+		DecimalFormat df = new DecimalFormat("#.###");
+		
 		String s = "";
 		
 		for(int i=0; i<nInstances; i++) {
-			s += Arrays.toString(this.bip[i]) + "\n";
+			for(int j=0; j<nLabels; j++) {
+				s += df.format(this.pred[i][j]) + ", ";
+			}
+			s += "\n";
 		}
 	
 		return s;

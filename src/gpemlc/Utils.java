@@ -20,6 +20,10 @@ import net.sf.jclec.util.random.IRandGen;
  */
 public class Utils {
 	
+	static enum ClassifierType{
+		LP, CC, kLabelset;
+	}
+	
 	/**
 	 * Random numbers generator
 	 */
@@ -349,5 +353,75 @@ public class Utils {
 				file.delete();
 			}
 		}
+	}
+	
+	/**
+	 * Transform a bipartition into a confidences array (with 0 and 1 values)
+	 * 
+	 * @param bip Bipartition
+	 * @return Confidences
+	 */
+	double[] bipartitionToConfidence(boolean[] bip) {
+		double [] conf = new double[bip.length];
+		
+		for(int i=0; i<bip.length; i++) {
+			if(bip[i]) {
+				conf[i] = 1;
+			}
+			else {
+				conf[i] = 0;
+			}
+		}
+		
+		return conf;
+	}
+
+	/**
+	 * Transform an array of confidences into bipartition, given a threshold
+	 * 
+	 * @param conf Confidences
+	 * @param threshold Threshold to determine relevant and irrelevant labels
+	 * @return Bipartition
+	 */
+	boolean[] confidenceToBipartition(double[] conf, double threshold) {
+		boolean[] bip = new boolean[conf.length];
+		
+		for(int i=0; i<conf.length; i++) {
+			if(conf[i] >= threshold) {
+				bip[i] = true;
+			}
+			else {
+				bip[i] = false;
+			}
+		}
+		
+		return bip;
+	}
+	
+	/**
+	 * Creates a random permutation with values from 0 to n-1
+	 * 
+	 * @param n Number of values
+	 * @param randgen Random numbers generator
+	 * @return Random permutation of n values in [0, n) range
+	 */
+	int[] randomPermutation(int n, IRandGen randgen) {
+		int [] perm = new int[n];
+		
+		//Fill array
+		for(int i=0; i<n; i++) {
+			perm[i] = i;
+		}
+		
+		//Shuffle array
+		int r, aux;
+		for(int i=0; i<n; i++) {
+			r = randgen.choose(0, n);
+			aux = perm[r];
+			perm[r] = perm[i];
+			perm[i] = aux;
+		}
+		
+		return perm;
 	}
 }

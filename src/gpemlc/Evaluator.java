@@ -23,7 +23,7 @@ import net.sf.jclec.stringtree.StringTreeIndividual;
 public class Evaluator extends AbstractEvaluator {
 
 	/**
-	 * Serialization constant
+	 * serialVersionUID
 	 */
 	private static final long serialVersionUID = 3488129084072488337L;
 
@@ -51,6 +51,11 @@ public class Evaluator extends AbstractEvaluator {
 	 * Table with predictions of each classifier over fullTrainData
 	 */
 	Hashtable<String, Prediction> tablePredictions = new Hashtable<String, Prediction>();
+	
+	/**
+	 * Indicates if confidences are used instead of bipartitions to combine predictions
+	 */
+	boolean useConfidences;
 	
 	/**
 	 * Constructor
@@ -85,6 +90,15 @@ public class Evaluator extends AbstractEvaluator {
 		this.tablePredictions = tablePredictions;
 	}
 	
+	/**
+	 * Setter for useConfidences
+	 * 
+	 * @param useConfidences true if confidences are used instead of bipartitions to combine predictions
+	 */
+	public void setUseConfidences(boolean useConfidences) {
+		this.useConfidences = useConfidences;
+	}
+	
 	@Override
 	protected void evaluate(IIndividual ind) 
 	{
@@ -111,18 +125,24 @@ public class Evaluator extends AbstractEvaluator {
 	 */
 	protected double exF(Prediction pred, MultiLabelInstances mlData) {
 		int[] labelIndices = mlData.getLabelIndices();
-		byte [] ground = new byte[mlData.getNumLabels()];
+		boolean [] ground = new boolean[mlData.getNumLabels()];
 		
 		double exF = 0.0;
 		
 		for(int i=0; i<mlData.getNumInstances(); i++) {
 			for(int j=0; j<mlData.getNumLabels(); j++) {
 				//Get ground truth for all labels in i-th instance
-				ground[j] = (byte) mlData.getDataSet().get(i).value(labelIndices[j]);
+				if(mlData.getDataSet().get(i).value(labelIndices[j]) >= 0.5) {
+					ground[j] = true;
+				}
+				else {
+					ground[j] = false;
+				}
 			}
 			
 			//Calculate exF for prediction and ground truth of i-th instance
-			exF += exFInstance(pred.bip[i], ground);	
+//			exF += exFInstance(pred.getBipartition(i, 0.5), ground);
+			exF += exFInstance(utils.confidenceToBipartition(pred.pred[i], 0.5), ground);
 		}
 		
 		//Divide the exF by the number of instances and return it
@@ -136,17 +156,17 @@ public class Evaluator extends AbstractEvaluator {
 	 * @param ground Ground truth
 	 * @return ExF
 	 */
-	protected double exFInstance(byte[] pred, byte[] ground) {
+	protected double exFInstance(boolean[] pred, boolean[] ground) {
 		double num=0, den=0;
 		
 		for(int i=0; i<pred.length; i++) {
-			if(pred[i] > 0) {
+			if(pred[i]) {
 				den++;
 			}
-			if(ground[i] > 0) {
+			if(ground[i]) {
 				den++;
 			}
-			if(pred[i]>0 && ground[i]>0) {
+			if(pred[i] && ground[i]) {
 				num += 2;
 			}
 		}
@@ -226,8 +246,13 @@ public class Evaluator extends AbstractEvaluator {
 		}
 		
 		//Divide prediction by the number of learners and apply threshold
-		pred.divideAndThresholdPrediction(nPreds, 0.5);
-		
+		if(useConfidences) {
+			pred.divide(nPreds);
+		}
+		else {
+			pred.divideAndThresholdPrediction(nPreds, 0.5);
+		}
+
 		return pred;
 	}
 	

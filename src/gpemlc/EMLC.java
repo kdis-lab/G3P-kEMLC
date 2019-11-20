@@ -14,10 +14,16 @@ import mulan.data.MultiLabelInstances;
 import weka.core.Instance;
 import weka.core.TechnicalInformation;
 
+/**
+ * Class implementing the ensemble for the GP-EMLC algorithm.
+ * 
+ * @author Jose M. Moyano
+ *
+ */
 public class EMLC extends MultiLabelMetaLearner {
 
 	/**
-	 * 
+	 * serialVersionUID
 	 */
 	private static final long serialVersionUID = 3236560089372633198L;
 	
@@ -45,6 +51,11 @@ public class EMLC extends MultiLabelMetaLearner {
 	 * Utils
 	 */
 	Utils utils = new Utils();
+	
+	/**
+	 * Determine if uses confidences or bipartitions to combine predictions
+	 */
+	boolean useConfidences;
 
 	/**
 	 * Constructor
@@ -65,8 +76,22 @@ public class EMLC extends MultiLabelMetaLearner {
 		super(baseLearner);
 		this.genotype = genotype;
 		this.leaves = utils.getLeaves(genotype);
+		this.useConfidences = false;
 	}	
 	
+	/**
+	 * Constructor with genotype and useConfidences
+	 * 
+	 * @param baseLearner Multi-label base learner
+	 * @param genotype Genotype of the individual tree
+	 * @param useConfidences true if confindences are used to combine predictions, false otherwise
+	 */
+	public EMLC(MultiLabelLearner baseLearner, String genotype, boolean useConfidences) {
+		super(baseLearner);
+		this.genotype = genotype;
+		this.leaves = utils.getLeaves(genotype);
+		this.useConfidences = useConfidences;
+	}	
 
 	@Override
 	protected void buildInternal(MultiLabelInstances trainingSet) throws Exception {
@@ -78,17 +103,15 @@ public class EMLC extends MultiLabelMetaLearner {
 		}
 	}
 	
-	
-
 	@Override
 	protected MultiLabelOutput makePredictionInternal(Instance instance) throws Exception, InvalidDataException {
 		//Get final prediction by reducing the tree
-		byte [] pred = reduce(genotype, instance).bip[0];
+		double [] confs = reduce(genotype, instance).pred[0];
 		
 		//Transform to multi-label output
 		boolean[] bip = new boolean[numLabels];
 		for(int i=0; i<numLabels; i++) {
-			if(pred[i] > 0) {
+			if(confs[i] >= 0.5) {
 				bip[i] = true;
 			}
 			else {
@@ -96,7 +119,7 @@ public class EMLC extends MultiLabelMetaLearner {
 			}
 		}
 		
-		return new MultiLabelOutput(bip);
+		return new MultiLabelOutput(bip, confs);
 	}
 	
 	/**
@@ -171,9 +194,14 @@ public class EMLC extends MultiLabelMetaLearner {
 				nPreds++;
 			}
 		}
-		
+
 		//Divide prediction by the number of learners and apply threshold
-		pred.divideAndThresholdPrediction(nPreds, 0.5);
+		if(useConfidences) {
+			pred.divide(nPreds);
+		}
+		else {
+			pred.divideAndThresholdPrediction(nPreds, 0.5);
+		}
 		
 		return pred;
 	}
@@ -185,21 +213,23 @@ public class EMLC extends MultiLabelMetaLearner {
 	 * @param instance Instance to predict
 	 * @return Predictions
 	 */
-	protected byte[][] getPredictions(MultiLabelLearner learner, Instance instance){
-		byte[][] bip = new byte[1][numLabels];
+	protected double[][] getPredictions(MultiLabelLearner learner, Instance instance){
+		double[][] pred = new double[1][numLabels];
+		pred[0] = null;
 		
 		try {
-			boolean[] boolPred = learner.makePrediction(instance).getBipartition();
-			for(int j=0; j<numLabels; j++) {
-				if(boolPred[j]) {
-					bip[0][j] = 1;
-				}
+			if(useConfidences) {
+				pred[0] = learner.makePrediction(instance).getConfidences();
 			}
-		}catch(Exception e) {
+			else {
+				pred[0] = utils.bipartitionToConfidence(learner.makePrediction(instance).getBipartition());
+			}
+			
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		
-		return bip;
+		return pred;
 	}
 
 	@Override

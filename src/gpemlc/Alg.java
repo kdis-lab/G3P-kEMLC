@@ -7,9 +7,11 @@ import java.util.List;
 
 import org.apache.commons.configuration.Configuration;
 
+import gpemlc.Utils.ClassifierType;
 import gpemlc.mutator.Mutator;
 import gpemlc.recombinator.Crossover;
 import mulan.classifier.MultiLabelLearnerBase;
+import mulan.classifier.transformation.ClassifierChain;
 import mulan.classifier.transformation.LabelPowerset2;
 import mulan.data.MultiLabelInstances;
 import mulan.evaluation.Evaluation;
@@ -21,10 +23,16 @@ import net.sf.jclec.stringtree.StringTreeIndividual;
 import net.sf.jclec.util.random.IRandGen;
 import weka.classifiers.trees.J48;
 
+/**
+ * Class implementing the evolutionary algorithm.
+ * 
+ * @author Jose M. Moyano
+ *
+ */
 public class Alg extends SGE {
 
 	/**
-	 * 
+	 * serialVersionUID
 	 */
 	private static final long serialVersionUID = -790335501425435317L;
 
@@ -49,7 +57,7 @@ public class Alg extends SGE {
 	MultiLabelInstances fullTrainData;
 	
 	/**
-	 * Training datasets
+	 * Current sampled training data for a given multi-label classifier
 	 */
 	MultiLabelInstances currentTrainData;
 	
@@ -64,7 +72,7 @@ public class Alg extends SGE {
 	MultiLabelInstances testData;
 	
 	/**
-	 * Number of MLC
+	 * Number of different MLC
 	 */
 	int nMLC;
 	
@@ -72,12 +80,7 @@ public class Alg extends SGE {
 	 * Utils
 	 */
 	Utils utils;
-	
-	/**
-	 * Table with built classifiers
-	 */
-	Hashtable<String, MultiLabelLearnerBase> table;
-	
+
 	/**
 	 * Table with predictions of each classifier
 	 */
@@ -88,15 +91,35 @@ public class Alg extends SGE {
 	 */
 	IRandGen randgen;
 	
+	/**
+	 * Multi-label base classifier
+	 */
+	MultiLabelLearnerBase learner;
+	
+	/**
+	 * Seed for random numbers
+	 */
+	int seed;
+	
+	/**
+	 * Use confidences or bipartitions in combining predictions
+	 */
+	boolean useConfidences;
+	
+	/**
+	 * Type of classifier used: LP, CC, k-labelset
+	 */
+	Utils.ClassifierType classifierType;
+	
 	@Override
 	public void configure(Configuration configuration) {
 		super.configure(configuration);
 		
 		randgen = randGenFactory.createRandGen();
 		utils = new Utils(randgen);
+		seed = configuration.getInt("rand-gen-factory[@seed]");
 		
-		//Initialize tables
-		table = new Hashtable<String, MultiLabelLearnerBase>();
+		//Initialize table for predictions
 		tablePredictions = new Hashtable<String, Prediction>();
 		
 		//Get datasets
@@ -109,6 +132,7 @@ public class Alg extends SGE {
 		nMLC = configuration.getInt("different-classifiers");
 		maxChildren = configuration.getInt("max-children");
 		maxDepth = configuration.getInt("max-depth");
+		useConfidences = configuration.getBoolean("use-confidences");
 		
 		fullTrainData = null;
 		currentTrainData = null;
@@ -123,31 +147,51 @@ public class Alg extends SGE {
 			   f.mkdir();
 			}
 			
+			//Create, store, and get predictions of each different classifier
 			for(int c=0; c<nMLC; c++) {
 				//Sample c-th data
 				currentTrainData = MulanUtils.sampleData(fullTrainData, sampleRatio, randgen);
 				
-				//Build classifier with c-th data and store in the table
-				LabelPowerset2 lp = new LabelPowerset2(new J48());
-				lp.setSeed(1);
-				table.put(String.valueOf(c), lp);
-				table.get(String.valueOf(c)).build(currentTrainData);
+				//Build classifier with c-th data
+				learner = null;
+				String learnerType = configuration.getString("base-learner");
+				switch (learnerType.toUpperCase()) {
+				case "LP":
+					classifierType = ClassifierType.LP;
+					learner = new LabelPowerset2(new J48());
+					((LabelPowerset2)learner).setSeed(seed);
+					break;
 				
-				//Store object of classifier in the hard disk
+				case "CC":
+					classifierType = ClassifierType.CC;
+					learner = new ClassifierChain(new J48(), utils.randomPermutation(fullTrainData.getNumLabels(), randgen));
+					break;
+					
+				case "KLABELSET":
+				case "K-LABELSET":
+					classifierType = ClassifierType.kLabelset;
+					learner = null;
+					break;
+
+				default:
+					classifierType = null;
+					learner = null;
+					break;
+				}
 				
-				utils.writeObject(table.get(String.valueOf(c)), "mlc/classifier"+c+".mlc");
+				learner.build(currentTrainData);
+				
+				//Store object of classifier in the hard disk				
+				utils.writeObject(learner, "mlc/classifier"+c+".mlc");
 				
 				//Get predictions of c-th classifier over all data
 				Prediction pred = new Prediction(fullTrainData.getNumInstances(), fullTrainData.getNumLabels());
 				for(int i=0; i<fullTrainData.getNumInstances(); i++) {
-					boolean[] bip = table.get(String.valueOf(c)).makePrediction(fullTrainData.getDataSet().get(i)).getBipartition();
-					for(int j=0; j<fullTrainData.getNumLabels(); j++) {
-						if(bip[j]) {
-							pred.bip[i][j] = 1;
-						}
-						else {
-							pred.bip[i][j] = 0;
-						}
+					if(useConfidences) {
+						System.arraycopy(learner.makePrediction(fullTrainData.getDataSet().get(i)).getConfidences(), 0, pred.pred[i], 0, fullTrainData.getNumLabels());
+					}
+					else {
+						System.arraycopy(utils.bipartitionToConfidence(learner.makePrediction(fullTrainData.getDataSet().get(i)).getBipartition()), 0, pred.pred[i], 0, fullTrainData.getNumLabels());
 					}
 				}
 				
@@ -173,6 +217,7 @@ public class Alg extends SGE {
 		
 		((Evaluator)evaluator).setFullTrainData(fullTrainData);
 		((Evaluator)evaluator).setTablePredictions(tablePredictions);
+		((Evaluator)evaluator).setUseConfidences(useConfidences);
 	}
 	
 	@Override
@@ -187,10 +232,28 @@ public class Alg extends SGE {
 			//Get genotype of best individual
 			String bestGenotype = ((StringTreeIndividual)bselector.select(bset, 1).get(0)).getGenotype();
 			
+			//Get base learner
+			switch (classifierType) {
+			case LP:
+				learner = new LabelPowerset2(new J48());
+				((LabelPowerset2)learner).setSeed(seed);
+				break;
+			
+			case CC:
+				learner = new ClassifierChain(new J48(), utils.randomPermutation(fullTrainData.getNumLabels(), randgen));
+				break;
+				
+			case kLabelset:
+				learner = null;
+				break;
+
+			default:
+				learner = null;
+				break;
+			}
+			
 			//Generate ensemble object
-			LabelPowerset2 lp = new LabelPowerset2(new J48());
-			lp.setSeed(1);			
-			EMLC ensemble = new EMLC(lp, bestGenotype);
+			EMLC ensemble = new EMLC(learner, bestGenotype, useConfidences);
 			
 			//Print the leaves; i.e., different classifiers used in the ensemble
 			System.out.println(utils.getLeaves(bestGenotype));
@@ -210,7 +273,6 @@ public class Alg extends SGE {
 				System.out.println(results);
 				
 			} catch (Exception e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 			
@@ -236,7 +298,7 @@ public class Alg extends SGE {
         measures.add(new ExampleBasedFMeasure());
         measures.add(new ExampleBasedAccuracy());
         measures.add(new ExampleBasedSpecificity());
-       // add label-based measures
+        // add label-based measures
         int numOfLabels = data.getNumLabels();
         measures.add(new MicroPrecision(numOfLabels));
         measures.add(new MicroRecall(numOfLabels));
@@ -247,24 +309,24 @@ public class Alg extends SGE {
 	    measures.add(new MacroFMeasure(numOfLabels));
 	    measures.add(new MacroSpecificity(numOfLabels));
       
-      // add ranking-based measures if applicable
-      // add ranking based measures
-//      measures.add(new AveragePrecision());
-//      measures.add(new Coverage());
-//      measures.add(new OneError());
-//      measures.add(new IsError());
-//      measures.add(new ErrorSetSize());
-//      measures.add(new RankingLoss());
+	    // add ranking-based measures if applicable
+	    // add ranking based measures
+	    measures.add(new AveragePrecision());
+	    measures.add(new Coverage());
+	    measures.add(new OneError());
+	    measures.add(new IsError());
+	    measures.add(new ErrorSetSize());
+	    measures.add(new RankingLoss());
       
-      // add confidence measures if applicable
-//      measures.add(new MeanAveragePrecision(numOfLabels));
-//      measures.add(new GeometricMeanAveragePrecision(numOfLabels));
-//      measures.add(new MeanAverageInterpolatedPrecision(numOfLabels, 10));
-//      measures.add(new GeometricMeanAverageInterpolatedPrecision(numOfLabels, 10));
+	    // add confidence measures if applicable
+	    measures.add(new MeanAveragePrecision(numOfLabels));
+	    measures.add(new GeometricMeanAveragePrecision(numOfLabels));
+	    measures.add(new MeanAverageInterpolatedPrecision(numOfLabels, 10));
+	    measures.add(new GeometricMeanAverageInterpolatedPrecision(numOfLabels, 10));
 	    measures.add(new MicroAUC(numOfLabels));
-//      measures.add(new MacroAUC(numOfLabels));
+	    measures.add(new MacroAUC(numOfLabels));
 
-        return measures;
+	    return measures;
     }
 	
 }
