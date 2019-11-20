@@ -21,7 +21,7 @@ import net.sf.jclec.util.random.IRandGen;
 public class Utils {
 	
 	static enum ClassifierType{
-		LP, CC, kLabelset;
+		BR, LP, CC, PS, kLabelset;
 	}
 	
 	/**

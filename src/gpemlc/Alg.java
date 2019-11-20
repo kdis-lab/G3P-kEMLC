@@ -11,8 +11,10 @@ import gpemlc.Utils.ClassifierType;
 import gpemlc.mutator.Mutator;
 import gpemlc.recombinator.Crossover;
 import mulan.classifier.MultiLabelLearnerBase;
+import mulan.classifier.transformation.BinaryRelevance;
 import mulan.classifier.transformation.ClassifierChain;
 import mulan.classifier.transformation.LabelPowerset2;
+import mulan.classifier.transformation.PrunedSets;
 import mulan.data.MultiLabelInstances;
 import mulan.evaluation.Evaluation;
 import mulan.evaluation.measure.*;
@@ -156,6 +158,11 @@ public class Alg extends SGE {
 				learner = null;
 				String learnerType = configuration.getString("base-learner");
 				switch (learnerType.toUpperCase()) {
+				case "BR":
+					classifierType = ClassifierType.BR;
+					learner = new BinaryRelevance(new J48());
+					break;
+				
 				case "LP":
 					classifierType = ClassifierType.LP;
 					learner = new LabelPowerset2(new J48());
@@ -165,6 +172,11 @@ public class Alg extends SGE {
 				case "CC":
 					classifierType = ClassifierType.CC;
 					learner = new ClassifierChain(new J48(), utils.randomPermutation(fullTrainData.getNumLabels(), randgen));
+					break;
+					
+				case "PS":
+					classifierType = ClassifierType.PS;
+					learner = new PrunedSets();
 					break;
 					
 				case "KLABELSET":
@@ -234,6 +246,10 @@ public class Alg extends SGE {
 			
 			//Get base learner
 			switch (classifierType) {
+			case BR:
+				learner = new BinaryRelevance(new J48());
+				break;
+				
 			case LP:
 				learner = new LabelPowerset2(new J48());
 				((LabelPowerset2)learner).setSeed(seed);
@@ -241,6 +257,10 @@ public class Alg extends SGE {
 			
 			case CC:
 				learner = new ClassifierChain(new J48(), utils.randomPermutation(fullTrainData.getNumLabels(), randgen));
+				break;
+				
+			case PS:
+				learner = new PrunedSets();
 				break;
 				
 			case kLabelset:
