@@ -73,6 +73,7 @@ public class Listener implements IAlgorithmListener, IConfigure
 	Utils utils = new Utils();		
 	String bestLeavesFilename = "reports/bestLeaves.csv";
 	String bestMaxDepthFilename = "reports/bestMaxDepth.csv";
+	String bestTreeFilename = "reports/bestTree.csv";
 	String bestFilename = "reports/bestFitness.csv";
 	String medianFilename = "reports/medianFitness.csv";
 	String avgFilename = "reports/avgFitness.csv";
@@ -235,6 +236,7 @@ public class Listener implements IAlgorithmListener, IConfigure
 		
 		BufferedWriter bestLeavesWriter = null;
 		BufferedWriter bestMaxDepthWriter = null;
+		BufferedWriter bestTreeWriter = null;
 		BufferedWriter bestWriter = null;
 		BufferedWriter medianWriter = null;
 		BufferedWriter avgWriter = null;
@@ -249,6 +251,15 @@ public class Listener implements IAlgorithmListener, IConfigure
 			bestMaxDepthWriter = new BufferedWriter(new FileWriter(bestMaxDepthFilename, true));
 			bestMaxDepthWriter.write("\n");
 			bestMaxDepthWriter.close();
+			
+			// Fitness comparator, inhabitants, and best individual
+			Comparator<IFitness> comparator = ((PopulationAlgorithm) event.getAlgorithm()).getEvaluator().getComparator();
+			List<IIndividual> inhabitants = ((PopulationAlgorithm) event.getAlgorithm()).getInhabitants();
+			IIndividual best = IndividualStatistics.bestIndividual(inhabitants, comparator);
+			String bestGen = ((StringTreeIndividual)best).getGenotype();
+			bestTreeWriter = new BufferedWriter(new FileWriter(bestTreeFilename, true));
+			bestTreeWriter.write(bestGen + "; " + utils.getLeaves(bestGen).size() + ";\n");
+			bestTreeWriter.close();
 			
 			bestWriter = new BufferedWriter(new FileWriter(bestFilename, true));
 			bestWriter.write("\n");
