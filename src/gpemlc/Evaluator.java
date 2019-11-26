@@ -276,21 +276,21 @@ public class Evaluator extends AbstractParallelEvaluator {
 	 * @return ExF
 	 */
 	protected double exFInstance(boolean[] pred, boolean[] ground) {
-		double num=0, den=0;
+		int tp=0, fp=0, fn=0;
 		
 		for(int i=0; i<pred.length; i++) {
-			if(pred[i]) {
-				den++;
-			}
-			if(ground[i]) {
-				den++;
-			}
 			if(pred[i] && ground[i]) {
-				num += 2;
+				tp++;
+			}
+			else if(pred[i] && !ground[i]) {
+				fp++;
+			}
+			else if(!pred[i] && ground[i]) {
+				fn++;
 			}
 		}
 		
-		return num/den;
+		return InformationRetrievalMeasures.fMeasure(tp, fp, fn, 1.0);
 	}
 	
 	/**
