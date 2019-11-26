@@ -168,6 +168,7 @@ public class Listener implements IAlgorithmListener, IConfigure
 	@Override
 	public void configure(Configuration settings) 
 	{
+		time_start = System.currentTimeMillis();
 		// Set report title (default "untitled")
 		String reportTitle = settings.getString("report-title", "untitled");
 		setReportTitle(reportTitle);
@@ -189,9 +190,7 @@ public class Listener implements IAlgorithmListener, IConfigure
 	
 	@Override
 	public void algorithmStarted(AlgorithmEvent event) 
-	{
-		time_start = System.currentTimeMillis();
-		
+	{		
 		// Create report title for this instance
 		String dateString = 
 			new Date(System.currentTimeMillis()).toString().replace(':','.');
