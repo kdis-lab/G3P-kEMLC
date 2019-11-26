@@ -75,7 +75,7 @@ public class Listener implements IAlgorithmListener, IConfigure
 	String bestMaxDepthFilename = "reports/bestMaxDepth.csv";
 	String bestTreeFilename = "reports/bestTree.csv";
 	String bestFilename = "reports/bestFitness.csv";
-//	String medianFilename = "reports/medianFitness.csv";
+	String medianFilename = "reports/medianFitness.csv";
 	String avgFilename = "reports/avgFitness.csv";
 	String worstFilename = "reports/worstFitness.csv";
 	
@@ -237,7 +237,7 @@ public class Listener implements IAlgorithmListener, IConfigure
 		BufferedWriter bestMaxDepthWriter = null;
 		BufferedWriter bestTreeWriter = null;
 		BufferedWriter bestWriter = null;
-//		BufferedWriter medianWriter = null;
+		BufferedWriter medianWriter = null;
 		BufferedWriter avgWriter = null;
 		BufferedWriter worstWriter = null;
 		BufferedWriter classificationReportWriter = null;
@@ -264,9 +264,9 @@ public class Listener implements IAlgorithmListener, IConfigure
 			bestWriter.write("\n");
 			bestWriter.close();
 			
-//			medianWriter = new BufferedWriter(new FileWriter(medianFilename, true));
-//			medianWriter.write("\n");
-//			medianWriter.close();
+			medianWriter = new BufferedWriter(new FileWriter(medianFilename, true));
+			medianWriter.write("\n");
+			medianWriter.close();
 			
 			avgWriter = new BufferedWriter(new FileWriter(avgFilename, true));
 			avgWriter.write("\n");
@@ -379,8 +379,8 @@ public class Listener implements IAlgorithmListener, IConfigure
 		IIndividual worst = IndividualStatistics.worstIndividual(inhabitants, comparator);
 		sb.append("Worst individual: "+worst+ ((SimpleValueFitness)worst.getFitness()).getValue() + "\n");
 		// Median individual
-//		IIndividual median = IndividualStatistics.medianIndividual(inhabitants, comparator);
-//		sb.append("Median individual: "+median+  ((SimpleValueFitness)median.getFitness()).getValue() + "\n");		
+		IIndividual median = IndividualStatistics.medianIndividual(inhabitants, comparator);
+		sb.append("Median individual: "+median+  ((SimpleValueFitness)median.getFitness()).getValue() + "\n");		
 		// Average fitness and fitness variance
 		double [] avgvar = IndividualStatistics.averageFitnessAndFitnessVariance(inhabitants);
 		sb.append("Average fitness = " + avgvar[0]+"\n");
@@ -405,7 +405,7 @@ public class Listener implements IAlgorithmListener, IConfigure
 		BufferedWriter bestLeavesWriter = null;
 		BufferedWriter bestMaxDepthWriter = null;
 		BufferedWriter bestWriter = null;
-//		BufferedWriter medianWriter = null;
+		BufferedWriter medianWriter = null;
 		BufferedWriter avgWriter = null;
 		BufferedWriter worstWriter = null;
 		
@@ -422,9 +422,9 @@ public class Listener implements IAlgorithmListener, IConfigure
 			bestWriter.write(((SimpleValueFitness)best.getFitness()).getValue() + "; ");
 			bestWriter.close();
 			
-//			medianWriter = new BufferedWriter(new FileWriter(medianFilename, true));
-//			medianWriter.write(((SimpleValueFitness)median.getFitness()).getValue() + "; ");
-//			medianWriter.close();
+			medianWriter = new BufferedWriter(new FileWriter(medianFilename, true));
+			medianWriter.write(((SimpleValueFitness)median.getFitness()).getValue() + "; ");
+			medianWriter.close();
 			
 			avgWriter = new BufferedWriter(new FileWriter(avgFilename, true));
 			avgWriter.write(avgvar[0] + "; ");
