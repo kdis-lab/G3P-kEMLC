@@ -1,17 +1,21 @@
 package gpemlc;
 
+import java.sql.Timestamp;
 import java.util.Comparator;
 import java.util.Hashtable;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import mulan.data.MultiLabelInstances;
+import mulan.evaluation.measure.InformationRetrievalMeasures;
 import net.sf.jclec.IFitness;
 import net.sf.jclec.IIndividual;
-import net.sf.jclec.base.AbstractEvaluator;
+import net.sf.jclec.base.AbstractParallelEvaluator;
 import net.sf.jclec.fitness.SimpleValueFitness;
 import net.sf.jclec.fitness.ValueFitnessComparator;
 import net.sf.jclec.stringtree.StringTreeIndividual;
+import net.sf.jclec.util.random.IRandGen;
 
 /**
  * Class implementing the evaluator for individuals (MultipListIndividuals).
@@ -20,7 +24,7 @@ import net.sf.jclec.stringtree.StringTreeIndividual;
  * @author Jose M. Moyano
  *
  */
-public class Evaluator extends AbstractEvaluator {
+public class Evaluator extends AbstractParallelEvaluator {
 
 	/**
 	 * serialVersionUID
@@ -58,6 +62,13 @@ public class Evaluator extends AbstractEvaluator {
 	boolean useConfidences;
 	
 	/**
+	 * Random numbers generator
+	 */
+	IRandGen randgen;
+	
+	ReentrantLock lock = new ReentrantLock(); 
+	
+	/**
 	 * Constructor
 	 */
 	public Evaluator()
@@ -87,7 +98,7 @@ public class Evaluator extends AbstractEvaluator {
 	 * @param tablePredictions Table with predictions of each classifier over full train data
 	 */
 	public void setTablePredictions(Hashtable<String, Prediction> tablePredictions) {
-		this.tablePredictions = tablePredictions;
+		this.tablePredictions = (Hashtable<String, Prediction>) tablePredictions;
 	}
 	
 	/**
@@ -99,21 +110,48 @@ public class Evaluator extends AbstractEvaluator {
 		this.useConfidences = useConfidences;
 	}
 	
+	/**
+	 * Setter for randgen
+	 * 
+	 * @param randgen Randgen
+	 */
+	public void setRandgen(IRandGen randgen) {
+		this.randgen = randgen;
+	}
+	
 	@Override
 	protected void evaluate(IIndividual ind) 
 	{
+		//Lock here the use of randgen to generate the unique key for the individual
+		lock.lock();
+		String key = Long.toString(new Timestamp(System.currentTimeMillis()).getTime());
+		int r = randgen.choose(3, 10);
+		for(int i=0; i<r; i++) {
+			key += (char)randgen.choose(48, 123);
+		}
+		lock.unlock();
+		
 		String gen = ((StringTreeIndividual)ind).getGenotype();
 
 		double fitness = 0.0;
 		
-		//Get predictions by reducing the ree
-		Prediction pred = reduce(gen);
+		//Get predictions by reducing the tree
+		Prediction pred = reduce(gen,key);
 		
 		//Calculate fitness (ExF) with the reduced predictions
 		fitness = exF(pred, fullTrainData);
+//		fitness = .5*exF(pred, fullTrainData) + .5*maF(pred, fullTrainData);
+//		System.out.println(fitness);
+//		fitness = (Math.round(fitness*1000)) - (utils.countLeaves(gen) / 27.0);
+//		System.out.println(fitness);
+
+//		fitness = 10*fitness - (utils.countLeaves(gen) / 27.0);
+//		fitness = modHl(pred, fullTrainData);
+//		fitness = 0.5*(1-modHl(pred, fullTrainData)) + 0.5*exF(pred, fullTrainData);
 		
 		//Set individual fitness
 		ind.setFitness(new SimpleValueFitness(fitness));
+		
 	}
 	
 	/**
@@ -150,6 +188,87 @@ public class Evaluator extends AbstractEvaluator {
 	}
 	
 	/**
+	 * Calculate the Modified Hamming loss (ModHl) for given prediction of all instances and true dataset
+	 * 
+	 * @param pred Predictions
+	 * @param mlData Multi-label data
+	 * @return ModHl
+	 */
+	protected double modHl(Prediction pred, MultiLabelInstances mlData) {
+		int[] labelIndices = mlData.getLabelIndices();
+		boolean [] ground = new boolean[mlData.getNumLabels()];
+		
+		double modHl = 0.0;
+		
+		for(int i=0; i<mlData.getNumInstances(); i++) {
+			for(int j=0; j<mlData.getNumLabels(); j++) {
+				//Get ground truth for all labels in i-th instance
+				if(mlData.getDataSet().get(i).value(labelIndices[j]) >= 0.5) {
+					ground[j] = true;
+				}
+				else {
+					ground[j] = false;
+				}
+			}
+			
+			//Calculate modHl for prediction and ground truth of i-th instance
+			modHl += modHlInstance(utils.confidenceToBipartition(pred.pred[i], 0.5), ground);
+		}
+		
+		//Divide the exF by the number of instances and return it
+		return modHl/mlData.getNumInstances();
+	}
+	
+	protected double maF(Prediction pred, MultiLabelInstances mlData) {
+		int[] labelIndices = mlData.getLabelIndices();
+		boolean [] ground = new boolean[mlData.getNumLabels()];
+		
+		int[] tp = new int[mlData.getNumLabels()];
+		int[] fp = new int[mlData.getNumLabels()];
+		int[] tn = new int[mlData.getNumLabels()];
+		int[] fn = new int[mlData.getNumLabels()];
+		
+		double maF = 0.0;
+		
+		for(int i=0; i<mlData.getNumInstances(); i++) {
+			boolean[] bip = utils.confidenceToBipartition(pred.pred[i], 0.5);
+			for(int j=0; j<mlData.getNumLabels(); j++) {
+				//Get ground truth for all labels in i-th instance
+				if(mlData.getDataSet().get(i).value(labelIndices[j]) >= 0.5) {
+					ground[j] = true;
+					if(bip[j]) {
+						tp[j]++;
+					}
+					else {
+						fn[j]++;
+					}
+				}
+				else {
+					ground[j] = false;
+					if(bip[j]) {
+						fp[j]++;
+					}
+					else {
+						tn[j]++;
+					}
+				}
+			}
+		}
+		
+		for(int j=0; j<mlData.getNumLabels(); j++) {
+			maF += fm(tp[j], fp[j], fn[j]);
+		}
+		maF /= mlData.getNumLabels();
+
+
+		return maF;
+	}
+	
+	protected double fm(int tp, int fp, int fn) {
+		return InformationRetrievalMeasures.fMeasure(tp, fp, fn, 1);
+	}
+	
+	/**
 	 * Calculate the Example-FMeasure (ExF) for given prediction and ground truth for one instance
 	 * 
 	 * @param pred Prediction of one instance
@@ -175,12 +294,37 @@ public class Evaluator extends AbstractEvaluator {
 	}
 	
 	/**
+	 * Calculate the Modified Hamming loss (modHl) for given prediction and ground truth for one instance
+	 * 
+	 * @param pred Prediction of one instance
+	 * @param ground Ground truth
+	 * @return modHl
+	 */
+	protected double modHlInstance(boolean[] pred, boolean[] ground) {
+		double num=0, den=0;
+		
+		for(int i=0; i<pred.length; i++) {
+			if(pred[i] || ground[i]) {
+				den++;
+				if(pred[i] != ground[i]) {
+					num++;
+				}
+			}
+		}
+		
+		if(den == 0) {
+			return 0;
+		}
+		return num/den;
+	}
+	
+	/**
 	 * Reduce the tree and obtain the final tree prediction
 	 * 
 	 * @param ind Individual, tree
 	 * @return Final tree prediction
 	 */
-	public Prediction reduce(String ind) {
+	public Prediction reduce(String ind, String key) {
 		//Match two or more leaves (numer or _number) between parenthesis
 		Pattern pattern = Pattern.compile("\\((_?\\d+ )+_?\\d+\\)");
 		Matcher m = pattern.matcher(ind);
@@ -191,10 +335,10 @@ public class Evaluator extends AbstractEvaluator {
 		
 		while(m.find()) {
 			//Combine the predictions of current nodes
-			pred = combine(m.group(0));
+			pred = combine(m.group(0), key);
 			
 			//Put combined predictions into the table
-			tablePredictions.put("_"+count, pred);
+			tablePredictions.put(key+"_"+count, pred);
 			
 			//Replace node in the genotype
 			ind = ind.substring(0, m.start()) + "_" + count + ind.substring(m.end(), ind.length());
@@ -213,7 +357,7 @@ public class Evaluator extends AbstractEvaluator {
 	 * @param nodes String with the nodes to combine
 	 * @return Combined prediction
 	 */
-	protected Prediction combine(String nodes){
+	protected Prediction combine(String nodes, String key){
 		Prediction pred = new Prediction(fullTrainData.getNumInstances(), fullTrainData.getNumLabels());
 		
 		Pattern pattern = Pattern.compile("\\d+");
@@ -232,10 +376,10 @@ public class Evaluator extends AbstractEvaluator {
 			//If the piece contains the character "_" is a combination of other nodes
 			if(piece.contains("_")) {
 				//Add to the current prediction, the prediction of one of the previously combined nodes
-				pred.addPrediction(tablePredictions.get("_"+n));
+				pred.addPrediction(tablePredictions.get(key+"_"+n));
 				
 				//Remove because it is not going to be used again
-				tablePredictions.remove("_"+n);
+				tablePredictions.remove(key+"_"+n);
 				nPreds++;
 			}
 			else {

@@ -1,7 +1,14 @@
 package gpemlc;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Hashtable;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.commons.configuration.Configuration;
 
@@ -14,6 +21,9 @@ import mulan.classifier.transformation.ClassifierChain;
 import mulan.classifier.transformation.LabelPowerset2;
 import mulan.classifier.transformation.PrunedSets2;
 import mulan.data.MultiLabelInstances;
+import mulan.evaluation.Evaluation;
+import mulan.evaluation.measure.ExampleBasedFMeasure;
+import mulan.evaluation.measure.Measure;
 import net.sf.jclec.algorithm.classic.SGE;
 import net.sf.jclec.selector.BettersSelector;
 import net.sf.jclec.stringtree.StringTreeCreator;
@@ -115,6 +125,11 @@ public class Alg extends SGE {
 	EMLC ensemble;
 	
 	/**
+	 * Lock for parallel critical code
+	 */
+	Lock lock = new ReentrantLock();
+	
+	/**
 	 * Getter for test data
 	 * 
 	 * @return Test data
@@ -154,9 +169,10 @@ public class Alg extends SGE {
 	public void configure(Configuration configuration) {
 		super.configure(configuration);
 		
+		seed = configuration.getInt("rand-gen-factory[@seed]");
 		randgen = randGenFactory.createRandGen();
 		utils = new Utils(randgen);
-		seed = configuration.getInt("rand-gen-factory[@seed]");
+		
 		
 		//Initialize table for predictions
 		tablePredictions = new Hashtable<String, Prediction>();
@@ -186,66 +202,48 @@ public class Alg extends SGE {
 			   f.mkdir();
 			}
 			
+			String learnerType = configuration.getString("base-learner");
+			switch (learnerType.toUpperCase()) {
+			case "BR":
+				classifierType = ClassifierType.BR;
+				break;
+			
+			case "LP":
+				classifierType = ClassifierType.LP;
+				break;
+			
+			case "CC":
+				classifierType = ClassifierType.CC;
+				break;
+				
+			case "PS":
+				classifierType = ClassifierType.PS;
+				break;
+				
+			case "KLABELSET":
+			case "K-LABELSET":
+				classifierType = ClassifierType.kLabelset;
+				break;
+
+			default:
+				classifierType = null;
+				break;
+			}
+			
+			//Set number of threads
+			ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+			
 			//Create, store, and get predictions of each different classifier
 			for(int c=0; c<nMLC; c++) {
-				//Sample c-th data
-				currentTrainData = MulanUtils.sampleData(fullTrainData, sampleRatio, randgen);
-				
-				//Build classifier with c-th data
-				learner = null;
-				String learnerType = configuration.getString("base-learner");
-				switch (learnerType.toUpperCase()) {
-				case "BR":
-					classifierType = ClassifierType.BR;
-					learner = new BinaryRelevance(new J48());
-					break;
-				
-				case "LP":
-					classifierType = ClassifierType.LP;
-					learner = new LabelPowerset2(new J48());
-					((LabelPowerset2)learner).setSeed(seed);
-					break;
-				
-				case "CC":
-					classifierType = ClassifierType.CC;
-					learner = new ClassifierChain(new J48(), utils.randomPermutation(fullTrainData.getNumLabels(), randgen));
-					break;
-					
-				case "PS":
-					classifierType = ClassifierType.PS;
-					learner = new PrunedSets2();
-					break;
-					
-				case "KLABELSET":
-				case "K-LABELSET":
-					classifierType = ClassifierType.kLabelset;
-					learner = null;
-					break;
-
-				default:
-					classifierType = null;
-					learner = null;
-					break;
-				}
-				
-				learner.build(currentTrainData);
-				
-				//Store object of classifier in the hard disk				
-				utils.writeObject(learner, "mlc/classifier"+c+".mlc");
-				
-				//Get predictions of c-th classifier over all data
-				Prediction pred = new Prediction(fullTrainData.getNumInstances(), fullTrainData.getNumLabels());
-				for(int i=0; i<fullTrainData.getNumInstances(); i++) {
-					if(useConfidences) {
-						System.arraycopy(learner.makePrediction(fullTrainData.getDataSet().get(i)).getConfidences(), 0, pred.pred[i], 0, fullTrainData.getNumLabels());
-					}
-					else {
-						System.arraycopy(utils.bipartitionToConfidence(learner.makePrediction(fullTrainData.getDataSet().get(i)).getBipartition()), 0, pred.pred[i], 0, fullTrainData.getNumLabels());
-					}
-				}
-				
-				//Put predictions in table
-				tablePredictions.put(String.valueOf(c), pred);
+				executorService.execute(new BuildClassifierParallel(c));				
+			}
+			executorService.shutdown();
+			
+			try {
+				//Wait until all threads finish
+				executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+			} catch (Exception e) {
+				e.printStackTrace();
 			}
 			
 			currentTrainData = null;
@@ -267,6 +265,7 @@ public class Alg extends SGE {
 		((Evaluator)evaluator).setFullTrainData(fullTrainData);
 		((Evaluator)evaluator).setTablePredictions(tablePredictions);
 		((Evaluator)evaluator).setUseConfidences(useConfidences);
+		((Evaluator)evaluator).setRandgen(randgen);
 	}
 	
 	@Override
@@ -277,10 +276,10 @@ public class Alg extends SGE {
 	@Override
 	protected void doControl()
 	{		
+		//Get genotype of best individual
+		String bestGenotype = ((StringTreeIndividual)bselector.select(bset, 1).get(0)).getGenotype();
+		
 		if (generation >= maxOfGenerations) {
-			//Get genotype of best individual
-			String bestGenotype = ((StringTreeIndividual)bselector.select(bset, 1).get(0)).getGenotype();
-			
 			//Get base learner
 			switch (classifierType) {
 			case BR:
@@ -329,5 +328,172 @@ public class Alg extends SGE {
 			return;
 		}
 	}	
+	
+	/**
+	 * Class to parallelize building base classifiers
+	 * 
+	 * @author Jose M. Moyano
+	 *
+	 */
+	public class BuildClassifierParallel extends Thread {
+		
+		//Index of classifier to build
+		int index;
+		
+		public BuildClassifierParallel(int index) {
+			this.index = index;
+		}
+		
+		public void run() {
+			try {
+				buildClassifier(index);
+			}catch(Exception e) {
+				e.printStackTrace();
+				System.exit(-1);
+			}
+		}
+	}
+	
+	/**
+	 * Build the c-th classifier
+	 * 
+	 * @param c Index of classifier to build
+	 */
+	public void buildClassifier(int c) {
+		IRandGen randgen;
+		MultiLabelInstances currentTrainData;
+		MultiLabelLearnerBase learner;
+		int seed = c;
+		
+		try {
+//			randgen = randGenFactory.createRandGen();
+			randgen = new RanecuFactory2().createRandGen(seed, seed*2);
+			
+			//Sample c-th data
+			currentTrainData = MulanUtils.sampleData(fullTrainData, sampleRatio, randgen);
+			
+			//Build classifier with c-th data
+			learner = null;
+			switch (classifierType) {
+			case BR:
+				learner = new BinaryRelevance(new J48());
+				break;
+			
+			case LP:
+				learner = new LabelPowerset2(new J48());
+				((LabelPowerset2)learner).setSeed(seed);
+				break;
+			
+			case CC:
+				learner = new ClassifierChain(new J48(), utils.randomPermutation(fullTrainData.getNumLabels(), randgen));
+				break;
+				
+			case PS:
+				learner = new PrunedSets2();
+				break;
+				
+			case kLabelset:
+				learner = null;
+				break;
+
+			default:
+				classifierType = null;
+				learner = null;
+				break;
+			}
+			
+			learner.build(currentTrainData);
+			
+			//Store object of classifier in the hard disk				
+			utils.writeObject(learner, "mlc/classifier"+c+".mlc");
+			
+			//Get predictions of c-th classifier over all data
+			Prediction pred = new Prediction(fullTrainData.getNumInstances(), fullTrainData.getNumLabels());
+			for(int i=0; i<fullTrainData.getNumInstances(); i++) {
+				if(useConfidences) {
+					System.arraycopy(learner.makePrediction(fullTrainData.getDataSet().get(i)).getConfidences(), 0, pred.pred[i], 0, fullTrainData.getNumLabels());
+				}
+				else {
+					System.arraycopy(utils.bipartitionToConfidence(learner.makePrediction(fullTrainData.getDataSet().get(i)).getBipartition()), 0, pred.pred[i], 0, fullTrainData.getNumLabels());
+				}
+			}
+			
+			
+			//Put predictions in table
+			lock.lock();
+			tablePredictions.put(String.valueOf(c), pred);
+			lock.unlock();
+		} catch(Exception e) {
+			e.printStackTrace();
+			System.exit(-1);
+		}
+		
+		
+	}
+	
+	public double evalBestTest() {
+		double testExF = 0.0;
+		EMLC ensemble;
+		
+		String bestGenotype = ((StringTreeIndividual)bselector.select(bset, 1).get(0)).getGenotype();
+		
+		//Get base learner
+		switch (classifierType) {
+		case BR:
+			learner = new BinaryRelevance(new J48());
+			break;
+			
+		case LP:
+			learner = new LabelPowerset2(new J48());
+			((LabelPowerset2)learner).setSeed(seed);
+			break;
+		
+		case CC:
+			learner = new ClassifierChain(new J48(), utils.randomPermutation(fullTrainData.getNumLabels(), randgen));
+			break;
+			
+		case PS:
+			learner = new PrunedSets2();
+			break;
+			
+		case kLabelset:
+			learner = null;
+			break;
+
+		default:
+			learner = null;
+			break;
+		}
+		
+		//Generate ensemble object
+		ensemble = new EMLC(learner, bestGenotype, useConfidences);
+		
+		//Print tree
+//		System.out.println(bestGenotype);
+		
+		try {
+			//Build the ensemble
+			ensemble.build(fullTrainData);
+
+			Evaluation results;
+			
+			List<Measure> measures = new ArrayList<Measure>(1);
+			measures.add(new ExampleBasedFMeasure());
+			results = new Evaluation(measures, testData);
+			mulan.evaluation.Evaluator eval = new mulan.evaluation.Evaluator();
+			
+			if(classifierType == ClassifierType.LP || classifierType == ClassifierType.PS) {
+				ensemble.resetSeed(seed);
+			}
+			results = eval.evaluate(ensemble, testData, measures);
+			
+			testExF = results.getMeasures().get(0).getValue();
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+		return testExF;
+	}
 	
 }
