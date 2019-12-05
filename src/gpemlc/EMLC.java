@@ -5,6 +5,7 @@ import java.util.Hashtable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import gpemlc.utils.Utils;
 import mulan.classifier.InvalidDataException;
 import mulan.classifier.MultiLabelLearner;
 import mulan.classifier.MultiLabelLearnerBase;
@@ -146,7 +147,7 @@ public class EMLC extends MultiLabelMetaLearner {
 		
 		//count to add predictions of combined nodes into the table
 		int count = 0;
-		Prediction pred = new Prediction(1, numLabels);
+		Prediction pred = new Prediction(1); //(1, numLabels)
 		
 		while(m.find()) {
 			//Combine the predictions of current nodes
@@ -174,7 +175,7 @@ public class EMLC extends MultiLabelMetaLearner {
 	 * @return Combined prediction
 	 */
 	protected Prediction combine(String nodes, Instance instance){
-		Prediction pred = new Prediction(1, numLabels);
+		Prediction pred = new Prediction(1); //(1, numLabels)
 		
 		Pattern pattern = Pattern.compile("\\d+");
 		Matcher m;
@@ -207,10 +208,10 @@ public class EMLC extends MultiLabelMetaLearner {
 
 		//Divide prediction by the number of learners and apply threshold
 		if(useConfidences) {
-			pred.divide(nPreds);
+			pred.divide();
 		}
 		else {
-			pred.divideAndThresholdPrediction(nPreds, 0.5);
+			pred.divideAndThresholdPrediction(0.5);
 		}
 		
 		return pred;

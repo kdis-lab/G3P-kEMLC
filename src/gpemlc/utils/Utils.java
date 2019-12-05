@@ -1,4 +1,4 @@
-package gpemlc;
+package gpemlc.utils;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -51,7 +51,7 @@ import net.sf.jclec.util.random.IRandGen;
  */
 public class Utils {
 	
-	static enum ClassifierType{
+	public static enum ClassifierType{
 		BR, LP, CC, PS, kLabelset;
 	}
 	
@@ -378,7 +378,7 @@ public class Utils {
 	 * 
 	 * @param dir Directory file
 	 */
-	void purgeDirectory(File dir) {
+	public void purgeDirectory(File dir) {
 		for (File file: dir.listFiles()) {
 			if (!file.isDirectory()) {
 				file.delete();
@@ -392,7 +392,7 @@ public class Utils {
 	 * @param bip Bipartition
 	 * @return Confidences
 	 */
-	double[] bipartitionToConfidence(boolean[] bip) {
+	public double[] bipartitionToConfidence(boolean[] bip) {
 		double [] conf = new double[bip.length];
 		
 		for(int i=0; i<bip.length; i++) {
@@ -414,7 +414,7 @@ public class Utils {
 	 * @param threshold Threshold to determine relevant and irrelevant labels
 	 * @return Bipartition
 	 */
-	boolean[] confidenceToBipartition(double[] conf, double threshold) {
+	public boolean[] confidenceToBipartition(double[] conf, double threshold) {
 		boolean[] bip = new boolean[conf.length];
 		
 		for(int i=0; i<conf.length; i++) {
@@ -436,7 +436,7 @@ public class Utils {
 	 * @param randgen Random numbers generator
 	 * @return Random permutation of n values in [0, n) range
 	 */
-	int[] randomPermutation(int n, IRandGen randgen) {
+	public int[] randomPermutation(int n, IRandGen randgen) {
 		int [] perm = new int[n];
 		
 		//Fill array
@@ -510,7 +510,7 @@ public class Utils {
 	 * @param filename Name of the file
 	 * @return true if the file exists, false otherwise
 	 */
-	boolean fileExist(String filename) {
+	public boolean fileExist(String filename) {
 		File tempFile = new File(filename);
 		return tempFile.exists();
 	}

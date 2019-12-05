@@ -1,6 +1,6 @@
 package gpemlc.recombinator;
 
-import gpemlc.Utils;
+import gpemlc.utils.Utils;
 import net.sf.jclec.stringtree.StringTreeIndividual;
 import net.sf.jclec.stringtree.StringTreeRecombinator;
 

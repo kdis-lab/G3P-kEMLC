@@ -1,4 +1,4 @@
-package gpemlc;
+package gpemlc.utils;
 
 import mulan.data.InvalidDataFormatException;
 import mulan.data.MultiLabelInstances;

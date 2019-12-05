@@ -12,14 +12,15 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.commons.configuration.Configuration;
 
-import gpemlc.Utils.ClassifierType;
+import gpemlc.utils.DatasetTransformation;
+import gpemlc.utils.KLabelset;
+import gpemlc.utils.KLabelsetGenerator;
+import gpemlc.utils.MulanUtils;
+import gpemlc.utils.Utils;
 import gpemlc.mutator.Mutator;
 import gpemlc.recombinator.Crossover;
 import mulan.classifier.MultiLabelLearnerBase;
-import mulan.classifier.transformation.BinaryRelevance;
-import mulan.classifier.transformation.ClassifierChain;
 import mulan.classifier.transformation.LabelPowerset2;
-import mulan.classifier.transformation.PrunedSets2;
 import mulan.data.MultiLabelInstances;
 import mulan.evaluation.Evaluation;
 import mulan.evaluation.measure.ExampleBasedFMeasure;
@@ -58,6 +59,11 @@ public class Alg extends SGE {
 	 * Max depth of the tree
 	 */
 	int maxDepth;
+	
+	/**
+	 * Size of the k-labelsets
+	 */
+	int k;
 	
 	/**
 	 * Full training dataset
@@ -115,9 +121,9 @@ public class Alg extends SGE {
 	boolean useConfidences;
 	
 	/**
-	 * Type of classifier used: LP, CC, k-labelset
+	 * Array of k-labelsets
 	 */
-	Utils.ClassifierType classifierType;
+	ArrayList<KLabelset> klabelsets;
 	
 	/**
 	 * Final ensemble
@@ -148,15 +154,6 @@ public class Alg extends SGE {
 	}
 	
 	/**
-	 * Getter for classifierType
-	 * 
-	 * @return classifierType
-	 */
-	public Utils.ClassifierType getClassifierType() {
-		return classifierType;
-	}
-	
-	/**
 	 * Getter for the ensemble
 	 * 
 	 * @return Ensemble
@@ -184,6 +181,7 @@ public class Alg extends SGE {
 		
 		sampleRatio = configuration.getDouble("sampling-ratio");
 		
+		k = configuration.getInt("k");
 		nMLC = configuration.getInt("different-classifiers");
 		maxChildren = configuration.getInt("max-children");
 		maxDepth = configuration.getInt("max-depth");
@@ -202,33 +200,11 @@ public class Alg extends SGE {
 			   f.mkdir();
 			}
 			
-			String learnerType = configuration.getString("base-learner");
-			switch (learnerType.toUpperCase()) {
-			case "BR":
-				classifierType = ClassifierType.BR;
-				break;
-			
-			case "LP":
-				classifierType = ClassifierType.LP;
-				break;
-			
-			case "CC":
-				classifierType = ClassifierType.CC;
-				break;
-				
-			case "PS":
-				classifierType = ClassifierType.PS;
-				break;
-				
-			case "KLABELSET":
-			case "K-LABELSET":
-				classifierType = ClassifierType.kLabelset;
-				break;
-
-			default:
-				classifierType = null;
-				break;
-			}
+			//Generate k-labelsets
+			KLabelsetGenerator klabelsetGen = new KLabelsetGenerator(k, fullTrainData.getNumLabels(), nMLC);
+			klabelsetGen.setRandgen(randgen);
+			klabelsets = klabelsetGen.generateKLabelsets();
+			klabelsetGen.printKLabelsets();
 			
 			//Set number of threads
 			ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
@@ -247,6 +223,8 @@ public class Alg extends SGE {
 			}
 			
 			currentTrainData = null;
+//			System.exit(1);
+			
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -279,34 +257,14 @@ public class Alg extends SGE {
 		//Get genotype of best individual
 		String bestGenotype = ((StringTreeIndividual)bselector.select(bset, 1).get(0)).getGenotype();
 		
+//		System.out.println("gen: " + generation);
+		
 		if (generation >= maxOfGenerations) {
+			System.exit(1);
 			//Get base learner
-			switch (classifierType) {
-			case BR:
-				learner = new BinaryRelevance(new J48());
-				break;
-				
-			case LP:
-				learner = new LabelPowerset2(new J48());
-				((LabelPowerset2)learner).setSeed(seed);
-				break;
-			
-			case CC:
-				learner = new ClassifierChain(new J48(), utils.randomPermutation(fullTrainData.getNumLabels(), randgen));
-				break;
-				
-			case PS:
-				learner = new PrunedSets2();
-				break;
-				
-			case kLabelset:
-				learner = null;
-				break;
-
-			default:
-				learner = null;
-				break;
-			}
+//			learner = null;
+			learner = new LabelPowerset2(new J48());
+			((LabelPowerset2)learner).setSeed(seed);
 			
 			//Generate ensemble object
 			ensemble = new EMLC(learner, bestGenotype, useConfidences);
@@ -360,69 +318,57 @@ public class Alg extends SGE {
 	 * @param c Index of classifier to build
 	 */
 	public void buildClassifier(int c) {
-		IRandGen randgen;
-		MultiLabelInstances currentTrainData;
+		IRandGen randgen = null;
+		MultiLabelInstances currentTrainData, currentFullData;
 		MultiLabelLearnerBase learner;
 		int seed = c;
 		
 		try {
-//			randgen = randGenFactory.createRandGen();
 			randgen = new RanecuFactory2().createRandGen(seed, seed*2);
 			
 			//Sample c-th data
-			currentTrainData = MulanUtils.sampleData(fullTrainData, sampleRatio, randgen);
+//			currentTrainData = MulanUtils.sampleData(fullTrainData, sampleRatio, randgen);
 			
 			//Build classifier with c-th data
 			learner = null;
-			switch (classifierType) {
-			case BR:
-				learner = new BinaryRelevance(new J48());
-				break;
-			
-			case LP:
-				learner = new LabelPowerset2(new J48());
-				((LabelPowerset2)learner).setSeed(seed);
-				break;
-			
-			case CC:
-				learner = new ClassifierChain(new J48(), utils.randomPermutation(fullTrainData.getNumLabels(), randgen));
-				break;
-				
-			case PS:
-				learner = new PrunedSets2();
-				break;
-				
-			case kLabelset:
-				learner = null;
-				break;
-
-			default:
-				classifierType = null;
-				learner = null;
-				break;
-			}
-			
+			learner = new LabelPowerset2(new J48());
+			((LabelPowerset2)learner).setSeed(seed);
+			//Transform full train data
+			DatasetTransformation dt = new DatasetTransformation();
+			currentTrainData = dt.transformDataset(fullTrainData, klabelsets.get(c).getKlabelset());
+			currentFullData = currentTrainData;
+			//Build
 			learner.build(currentTrainData);
 			
 			//Store object of classifier in the hard disk				
 			utils.writeObject(learner, "mlc/classifier"+c+".mlc");
 			
 			//Get predictions of c-th classifier over all data
-			Prediction pred = new Prediction(fullTrainData.getNumInstances(), fullTrainData.getNumLabels());
-			for(int i=0; i<fullTrainData.getNumInstances(); i++) {
+			double[][] currentPredictions = new double[currentFullData.getNumInstances()][k];
+			for(int i=0; i<currentFullData.getNumInstances(); i++) {
 				if(useConfidences) {
-					System.arraycopy(learner.makePrediction(fullTrainData.getDataSet().get(i)).getConfidences(), 0, pred.pred[i], 0, fullTrainData.getNumLabels());
+					System.arraycopy(learner.makePrediction(currentFullData.getDataSet().get(i)).getConfidences(), 0, currentPredictions[i], 0, currentFullData.getNumLabels());
 				}
 				else {
-					System.arraycopy(utils.bipartitionToConfidence(learner.makePrediction(fullTrainData.getDataSet().get(i)).getBipartition()), 0, pred.pred[i], 0, fullTrainData.getNumLabels());
+					System.arraycopy(utils.bipartitionToConfidence(learner.makePrediction(currentFullData.getDataSet().get(i)).getBipartition()), 0, currentPredictions[i], 0, currentFullData.getNumLabels());
 				}
 			}
+			
+			//Create Prediction object
+			Prediction pred = new Prediction(dt.getOriginalLabelIndices(), currentPredictions);
 			
 			
 			//Put predictions in table
 			lock.lock();
-			tablePredictions.put(String.valueOf(c), pred);
+			tablePredictions.put(String.valueOf(c), new Prediction(pred));
 			lock.unlock();
+			
+			currentTrainData = null;
+			currentFullData = null;
+			pred = null;
+			learner = null;
+			currentPredictions = null;
+			dt = null;
 		} catch(Exception e) {
 			e.printStackTrace();
 			System.exit(-1);
@@ -438,32 +384,9 @@ public class Alg extends SGE {
 		String bestGenotype = ((StringTreeIndividual)bselector.select(bset, 1).get(0)).getGenotype();
 		
 		//Get base learner
-		switch (classifierType) {
-		case BR:
-			learner = new BinaryRelevance(new J48());
-			break;
-			
-		case LP:
-			learner = new LabelPowerset2(new J48());
-			((LabelPowerset2)learner).setSeed(seed);
-			break;
-		
-		case CC:
-			learner = new ClassifierChain(new J48(), utils.randomPermutation(fullTrainData.getNumLabels(), randgen));
-			break;
-			
-		case PS:
-			learner = new PrunedSets2();
-			break;
-			
-		case kLabelset:
-			learner = null;
-			break;
-
-		default:
-			learner = null;
-			break;
-		}
+//		learner = null;
+		learner = new LabelPowerset2(new J48());
+		((LabelPowerset2)learner).setSeed(seed);
 		
 		//Generate ensemble object
 		ensemble = new EMLC(learner, bestGenotype, useConfidences);
@@ -482,9 +405,7 @@ public class Alg extends SGE {
 			results = new Evaluation(measures, testData);
 			mulan.evaluation.Evaluator eval = new mulan.evaluation.Evaluator();
 			
-			if(classifierType == ClassifierType.LP || classifierType == ClassifierType.PS) {
-				ensemble.resetSeed(seed);
-			}
+			ensemble.resetSeed(seed);
 			results = eval.evaluate(ensemble, testData, measures);
 			
 			testExF = results.getMeasures().get(0).getValue();

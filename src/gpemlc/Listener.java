@@ -24,7 +24,8 @@ import org.apache.commons.configuration.Configuration;
 
 import org.apache.commons.lang.builder.EqualsBuilder;
 
-import gpemlc.Utils.ClassifierType;
+import gpemlc.utils.Utils;
+import gpemlc.utils.Utils.ClassifierType;
 import mulan.data.MultiLabelInstances;
 import mulan.evaluation.Evaluation;
 import mulan.evaluation.measure.Measure;
@@ -288,9 +289,7 @@ public class Listener implements IAlgorithmListener, IConfigure
 			results = new Evaluation(measures, testData);
 			mulan.evaluation.Evaluator eval = new mulan.evaluation.Evaluator();
 			
-			if(((Alg)event.getAlgorithm()).getClassifierType() == ClassifierType.LP || ((Alg)event.getAlgorithm()).getClassifierType() == ClassifierType.PS) {
-				ensemble.resetSeed(((Alg)event.getAlgorithm()).getSeed());
-			}
+			ensemble.resetSeed(((Alg)event.getAlgorithm()).getSeed());
 			results = eval.evaluate(ensemble, testData, measures);
 			
 			//If the file didnt exist, print the header

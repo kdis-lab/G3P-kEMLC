@@ -1,7 +1,7 @@
 package gpemlc.mutator;
 
 import gpemlc.IndividualCreator;
-import gpemlc.Utils;
+import gpemlc.utils.Utils;
 import net.sf.jclec.ISpecies;
 import net.sf.jclec.stringtree.StringTreeIndividual;
 import net.sf.jclec.stringtree.StringTreeMutator;
