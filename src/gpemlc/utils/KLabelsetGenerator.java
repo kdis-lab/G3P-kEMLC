@@ -1,10 +1,18 @@
 package gpemlc.utils;
 
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Locale;
 
 import net.sf.jclec.util.random.IRandGen;
 
+/**
+ * Class implementing the generator of k-labelsets
+ * 
+ * @author Jose M. Moyano
+ *
+ */
 public class KLabelsetGenerator {
 
 	/**
@@ -64,7 +72,8 @@ public class KLabelsetGenerator {
 	/**
 	 * Constructor
 	 * 
-	 * @param k Size of the k-labelsets
+	 * @param minK Minimum allowed size of k-labelsets
+	 * @param maxK Maximum allowed size of k-labelsets
 	 * @param nLabels Number of labels in the dataset
 	 */
 	public KLabelsetGenerator(int minK, int maxK, int nLabels) {
@@ -80,7 +89,8 @@ public class KLabelsetGenerator {
 	/**
 	 * Constructor
 	 * 
-	 * @param k Size of the k-labelsets
+	 * @param minK Minimum allowed size of k-labelsets
+	 * @param maxK Maximum allowed size of k-labelsets
 	 * @param nLabels Number of labels in the dataset
 	 * @param nLabelsets Number of labelsets to generate
 	 */
@@ -124,6 +134,7 @@ public class KLabelsetGenerator {
 	/**
 	 * Generate random k-labelset
 	 * 
+	 * @param k Size of the labelset to generate
 	 * @return Randomly generated k-labelset
 	 */
 	private KLabelset randomKLabelset(int k) {
@@ -142,10 +153,24 @@ public class KLabelsetGenerator {
 		return new KLabelset(k, this.nLabels, klabelset);
 	}
 	
+	/**
+	 * Generate a random k-labelset being k in the range [minK, maxK]
+	 * 
+	 * @param minK Minimum allowed value for k
+	 * @param maxK Maximum allowed value for k
+	 * @return Randomly generated k-labelset
+	 */
 	private KLabelset randomKLabelset(int minK, int maxK) {
 		return randomKLabelset(randgen.choose(minK, maxK+1));
 	}
 	
+	/**
+	 * Generate an array of nLabelsets k-labelsets
+	 * The size of each k-labelset is randomly selected in the range [minK, maxK]
+	 * 
+	 * @param nLabelsets Number of KLabelsets to generate
+	 * @return Array of KLabelsets
+	 */
 	public ArrayList<KLabelset> generateKLabelsets(int nLabelsets){
 		//Clear k-labelsets array
 		this.klabelsets = new ArrayList<KLabelset>(nLabelsets);
@@ -182,7 +207,40 @@ public class KLabelsetGenerator {
 		return null;
 	}
 	
+	/**
+	 * Print the KLabelsets object
+	 */
 	public void printKLabelsets() {
-		System.out.println("k: [" + minK + ", " + maxK + "]; nL: " + nLabels + "; --> " + klabelsets.toString());
+		String s = new String();
+		
+		//Add k range
+		s += "k: [" + minK + ", " + maxK + "]; ";
+		
+		//Add avgK
+		DecimalFormat df = (DecimalFormat)DecimalFormat.getNumberInstance(Locale.ENGLISH);
+		s += "avgK: " + df.format(avgSizeKLabelsets()) + "; ";
+		
+		//Add nLabels
+		s +=  "nL: " + nLabels + "; ";
+		
+		//Add k-labelsets
+		s += "--> " + klabelsets.toString();
+		
+		System.out.println(s);
+	}
+	
+	/**
+	 * Compute the average size of the k-labelsets in the array
+	 * 
+	 * @return Average size of the k-labelsets
+	 */
+	public double avgSizeKLabelsets() {
+		double sum = 0.0;
+		
+		for(KLabelset kl : this.klabelsets) {
+			sum += kl.k;
+		}
+		
+		return sum/this.klabelsets.size();
 	}
 }

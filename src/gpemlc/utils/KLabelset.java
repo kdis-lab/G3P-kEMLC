@@ -2,6 +2,12 @@ package gpemlc.utils;
 
 import java.util.ArrayList;
 
+/**
+ * Class that implements the k-labelset
+ * 
+ * @author Jose M. Moyano
+ *
+ */
 public class KLabelset {
 
 	/**

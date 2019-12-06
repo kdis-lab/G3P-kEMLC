@@ -151,6 +151,7 @@ public class Evaluator extends AbstractParallelEvaluator {
 		else {
 			//Calculate fitness (ExF) with the reduced predictions
 			fitness = 0.5*exF(pred, fullTrainData) + 0.5*maF(pred, fullTrainData);
+//			fitness = exF(pred, fullTrainData);
 		}
 		
 		//Set individual fitness

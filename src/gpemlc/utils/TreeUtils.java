@@ -87,7 +87,7 @@ public class TreeUtils {
 				pred.addPrediction(tablePredictions.get(key+"_"+n));
 				
 				//Remove because it is not going to be used again
-				tablePredictions.remove(key+"_"+n);
+				tablePredictions.replace(key+"_"+n, new Prediction());
 			}
 			else {
 				//Add to the current prediction, the prediction of the corresponding classifier
@@ -107,6 +107,14 @@ public class TreeUtils {
 		return pred;
 	}
 	
+	/**
+	 * Calculate the votes per label given a tree individual
+	 * 
+	 * @param ind Individual (tree)
+	 * @param klabelsets Array with all k-labelsets
+	 * @param nLabels Total number of labels
+	 * @return Array with the number of votes per label
+	 */
 	public static int[] votesPerLabel(String ind, ArrayList<KLabelset> klabelsets, int nLabels) {
 		int[] votes = new int[nLabels];
 		
@@ -120,5 +128,21 @@ public class TreeUtils {
 		}
 		
 		return votes;
+	}
+	
+	/**
+	 * Calculate the average number of votes per label
+	 * 
+	 * @param votesPerLabel Array with the number of votes per label
+	 * @return Average number of votes per label
+	 */
+	public static double avgVotes(int[] votesPerLabel) {
+		double sum = 0.0;
+		
+		for(int i=0; i<votesPerLabel.length; i++) {
+			sum += votesPerLabel[i];
+		}
+		
+		return sum/votesPerLabel.length;
 	}
 }

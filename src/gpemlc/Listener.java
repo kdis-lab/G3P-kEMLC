@@ -7,6 +7,7 @@ import java.io.IOException;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Arrays;
 import java.util.Comparator;
 
 import net.sf.jclec.IFitness;
@@ -24,6 +25,7 @@ import org.apache.commons.configuration.Configuration;
 
 import org.apache.commons.lang.builder.EqualsBuilder;
 
+import gpemlc.utils.TreeUtils;
 import gpemlc.utils.Utils;
 import mulan.data.MultiLabelInstances;
 import mulan.evaluation.Evaluation;
@@ -257,7 +259,9 @@ public class Listener implements IAlgorithmListener, IConfigure
 			IIndividual best = IndividualStatistics.bestIndividual(inhabitants, comparator);
 			String bestGen = ((StringTreeIndividual)best).getGenotype();
 			bestTreeWriter = new BufferedWriter(new FileWriter(bestTreeFilename, true));
-			bestTreeWriter.write(bestGen + "; " + utils.getLeaves(bestGen).size() + ";\n");
+			int [] votesPerLabel = TreeUtils.votesPerLabel(bestGen, ((Alg)event.getAlgorithm()).klabelsets, ((Alg)event.getAlgorithm()).fullTrainData.getNumLabels());
+			double avgVotes = TreeUtils.avgVotes(votesPerLabel);
+			bestTreeWriter.write(bestGen + " " + Arrays.toString(votesPerLabel) + "; " + avgVotes + "; " + utils.getLeaves(bestGen).size() + ";\n");
 			bestTreeWriter.close();
 			
 			bestWriter = new BufferedWriter(new FileWriter(bestFilename, true));
