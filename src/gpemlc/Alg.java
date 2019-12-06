@@ -2,6 +2,7 @@ package gpemlc;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -16,6 +17,7 @@ import gpemlc.utils.DatasetTransformation;
 import gpemlc.utils.KLabelset;
 import gpemlc.utils.KLabelsetGenerator;
 import gpemlc.utils.MulanUtils;
+import gpemlc.utils.TreeUtils;
 import gpemlc.utils.Utils;
 import gpemlc.mutator.Mutator;
 import gpemlc.recombinator.Crossover;
@@ -25,8 +27,11 @@ import mulan.data.MultiLabelInstances;
 import mulan.evaluation.Evaluation;
 import mulan.evaluation.measure.ExampleBasedFMeasure;
 import mulan.evaluation.measure.Measure;
+import net.sf.jclec.IIndividual;
 import net.sf.jclec.algorithm.classic.SGE;
+import net.sf.jclec.fitness.SimpleValueFitness;
 import net.sf.jclec.selector.BettersSelector;
+import net.sf.jclec.selector.WorsesSelector;
 import net.sf.jclec.stringtree.StringTreeCreator;
 import net.sf.jclec.stringtree.StringTreeIndividual;
 import net.sf.jclec.util.random.IRandGen;
@@ -135,6 +140,12 @@ public class Alg extends SGE {
 	 */
 	Lock lock = new ReentrantLock();
 	
+	/** Betters selector. Used in update phase */
+	BettersSelector bettersSelector = new BettersSelector(this);
+	
+	/** Worses selector. Used in update phase */
+	WorsesSelector worsesSelector = new WorsesSelector(this);
+	
 	/**
 	 * Getter for test data
 	 * 
@@ -223,7 +234,6 @@ public class Alg extends SGE {
 			}
 			
 			currentTrainData = null;
-//			System.exit(1);
 			
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -259,15 +269,17 @@ public class Alg extends SGE {
 		
 //		System.out.println("gen: " + generation);
 		
-		if (generation >= maxOfGenerations) {
-			System.exit(1);
+		if (generation >= maxOfGenerations) {			
+//			System.exit(1);
 			//Get base learner
 //			learner = null;
 			learner = new LabelPowerset2(new J48());
 			((LabelPowerset2)learner).setSeed(seed);
 			
 			//Generate ensemble object
-			ensemble = new EMLC(learner, bestGenotype, useConfidences);
+			ensemble = new EMLC(learner, klabelsets, bestGenotype, useConfidences);
+			
+			System.out.println(Arrays.toString(TreeUtils.votesPerLabel(bestGenotype, klabelsets, fullTrainData.getNumLabels())));
 			
 			//Print the leaves; i.e., different classifiers used in the ensemble
 			System.out.println(utils.getLeaves(bestGenotype));
@@ -286,6 +298,19 @@ public class Alg extends SGE {
 			return;
 		}
 	}	
+	
+	/**
+	 * Clear some variables to null
+	 */
+	public void clear() {
+		fullTrainData = null;
+		currentTrainData = null;
+		tablePredictions = null;
+		klabelsets = null;
+		testData = null;
+		learner = null;
+		ensemble = null;
+	}
 	
 	/**
 	 * Class to parallelize building base classifiers
@@ -327,7 +352,7 @@ public class Alg extends SGE {
 			randgen = new RanecuFactory2().createRandGen(seed, seed*2);
 			
 			//Sample c-th data
-//			currentTrainData = MulanUtils.sampleData(fullTrainData, sampleRatio, randgen);
+			currentTrainData = MulanUtils.sampleData(fullTrainData, sampleRatio, randgen);
 			
 			//Build classifier with c-th data
 			learner = null;
@@ -335,8 +360,14 @@ public class Alg extends SGE {
 			((LabelPowerset2)learner).setSeed(seed);
 			//Transform full train data
 			DatasetTransformation dt = new DatasetTransformation();
-			currentTrainData = dt.transformDataset(fullTrainData, klabelsets.get(c).getKlabelset());
-			currentFullData = currentTrainData;
+			currentTrainData = dt.transformDataset(currentTrainData, klabelsets.get(c).getKlabelset());
+			if(sampleRatio >= 0.999) {
+				currentFullData = currentTrainData;
+			}
+			else {
+				currentFullData = dt.transformDataset(fullTrainData, klabelsets.get(c).getKlabelset());
+			}
+//			currentFullData = currentTrainData;
 			//Build
 			learner.build(currentTrainData);
 			
@@ -372,49 +403,87 @@ public class Alg extends SGE {
 		} catch(Exception e) {
 			e.printStackTrace();
 			System.exit(-1);
-		}
-		
-		
+		}		
 	}
 	
-	public double evalBestTest() {
-		double testExF = 0.0;
-		EMLC ensemble;
+	protected void doUpdate() 
+	{
+		IIndividual bestb = bettersSelector.select(bset, 1).get(0);
+		IIndividual bestc = bettersSelector.select(cset, 1).get(0);
 		
-		String bestGenotype = ((StringTreeIndividual)bselector.select(bset, 1).get(0)).getGenotype();
-		
-		//Get base learner
-//		learner = null;
-		learner = new LabelPowerset2(new J48());
-		((LabelPowerset2)learner).setSeed(seed);
-		
-		//Generate ensemble object
-		ensemble = new EMLC(learner, bestGenotype, useConfidences);
-		
-		//Print tree
-//		System.out.println(bestGenotype);
-		
-		try {
-			//Build the ensemble
-			ensemble.build(fullTrainData);
-
-			Evaluation results;
-			
-			List<Measure> measures = new ArrayList<Measure>(1);
-			measures.add(new ExampleBasedFMeasure());
-			results = new Evaluation(measures, testData);
-			mulan.evaluation.Evaluator eval = new mulan.evaluation.Evaluator();
-			
-			ensemble.resetSeed(seed);
-			results = eval.evaluate(ensemble, testData, measures);
-			
-			testExF = results.getMeasures().get(0).getValue();
-			
-		} catch (Exception e) {
-			e.printStackTrace();
+		ArrayList<IIndividual> toRemove = new ArrayList<IIndividual>();
+		for(IIndividual ind : cset) {
+			if(((SimpleValueFitness)ind.getFitness()).getValue() < 0) {
+				toRemove.add(ind);
+			}
+		}
+//		System.out.println("remove: " + toRemove.size());
+		for(IIndividual ind : toRemove) {
+			cset.remove(ind);
 		}
 		
-		return testExF;
+		int csetSpace = populationSize - cset.size();
+		if(csetSpace <= 0) {
+			if (evaluator.getComparator().compare(bestb.getFitness(), bestc.getFitness()) == 1) {
+				IIndividual worstc = worsesSelector.select(cset, 1).get(0);
+				cset.remove(worstc);
+				cset.add(bestb);
+			}
+		}
+		else {
+			bset = bettersSelector.select(bset, bset.size());
+			for(int i=0; i<csetSpace; i++) {
+				cset.add(bset.get(i));
+			}
+		}
+//		
+//		for(int i=0; i<nBest; i++) {
+//			if (evaluator.getComparator().compare(bestb.get(i).getFitness(), bestc.getFitness()) == 1) {
+//				IIndividual worstc = worsesSelector.select(cset, 1).get(0);
+//				cset.remove(worstc);
+//				cset.add(bestb.get(i));
+//			}
+//			else {
+//				break;
+//			}
+//		}
+//		
+//		IIndividual rInd;
+//		List<IIndividual> toRemove = new ArrayList<IIndividual>();
+//		List<IIndividual> toAdd = new ArrayList<IIndividual>();
+//		for(IIndividual ind : cset) {
+//			if(((SimpleValueFitness)ind.getFitness()).getValue() < 0) {
+//				do {
+//					rInd = bset.get(randgen.choose(0, bset.size()));
+//				}while(((SimpleValueFitness)rInd.getFitness()).getValue() < 0);
+//				toRemove.add(ind);
+//				toAdd.add(rInd);
+//			}
+//		}
+//		
+//		for(IIndividual ind : toRemove) {
+//			if(cset.contains(ind)) {
+//				cset.remove(ind);
+//			}
+//		}
+//		
+//		for(IIndividual ind : toAdd) {
+//			if(cset.contains(ind)) {
+//				cset.add(ind);
+//			}
+//		}
+//		
+//		while(cset.size() < populationSize) {
+//			cset.add(bset.get(randgen.choose(0, bset.size())));
+//		}
+//		
+		// Sets new bset
+		bset = cset;
+		// Clear pset, rset & cset
+		pset = null;
+		rset = null;
+		cset = null;
+		
 	}
 	
 }

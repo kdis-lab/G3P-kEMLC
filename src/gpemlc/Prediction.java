@@ -49,8 +49,8 @@ public class Prediction {
 	 */
 	public Prediction(int nInstances) {
 		this.nInstances = nInstances;
-		this.labelIndices = null;
-		this.labelVotes = null;
+		this.labelIndices = new ArrayList<Integer>(0);
+		this.labelVotes = new int[0];
 		this.pred = new double[nInstances][];
 	}
 	
@@ -68,8 +68,8 @@ public class Prediction {
 			this.labelIndices.add(labelIndices[i]);
 		}
 		
-		this.labelVotes = new int[prediction[0].length];
-		for(int i=0; i<prediction[0].length; i++) {
+		this.labelVotes = new int[labelIndices.length];
+		for(int i=0; i<labelIndices.length; i++) {
 			labelVotes[i] = 1;
 		}
 		
@@ -147,8 +147,7 @@ public class Prediction {
 		}
 		
 		//Combine the label indices in an new array
-		ArrayList<Integer> newLabelIndices = new ArrayList<Integer>();
-		newLabelIndices.addAll(this.labelIndices);
+		ArrayList<Integer> newLabelIndices = new ArrayList<Integer>(this.labelIndices);
 		
 		for(int i=0; i<other.labelIndices.size(); i++) {
 			if(! newLabelIndices.contains(other.labelIndices.get(i))) {
@@ -166,6 +165,7 @@ public class Prediction {
 		int currLabelIndex;
 		//For each label index in any of the predictions (i.e., in newLabelIndices)
 		for(int l=0; l<newLabelIndices.size(); l++) {
+			//Get the current label index to work with it
 			currLabelIndex = newLabelIndices.get(l);
 			
 			//If both contain the same label, combine predictions
@@ -178,7 +178,7 @@ public class Prediction {
 					newLabelVotes[l] = this.labelVotes[thisLabelPos] + other.labelVotes[otherLabelPos];
 				}
 			}
-			//If only this contains the label; just copy this predictions
+			//If only *this* contains the label; just copy this predictions
 			else if(this.labelIndices.contains(currLabelIndex)) {
 				int thisLabelPos = this.labelIndices.indexOf(currLabelIndex);
 				for(int i=0; i<nInstances; i++) {
@@ -186,7 +186,7 @@ public class Prediction {
 					newLabelVotes[l] = this.labelVotes[thisLabelPos];
 				}
 			}
-			//If only other contains the label; just copy other predictions
+			//If only *other* contains the label; just copy other predictions
 			else if(other.labelIndices.contains(currLabelIndex)) {
 				int otherLabelPos = other.labelIndices.indexOf(currLabelIndex);
 				for(int i=0; i<nInstances; i++) {
@@ -213,8 +213,8 @@ public class Prediction {
 	 * 
 	 * @param other Prediction to add to the current one
 	 */
-	public void addPrediction(double[][] pred) {
-		//Do nothing
+	public void addPrediction(int[] labelIndices, double[][] pred) {
+		this.addPrediction(new Prediction(labelIndices, pred));
 	}
 		
 	/**
@@ -234,6 +234,10 @@ public class Prediction {
 				}
 			}
 		}
+		
+		for(int j=0; j<labelVotes.length; j++) {
+			labelVotes[j] = 1;
+		}
 	}
 	
 	/**
@@ -244,6 +248,10 @@ public class Prediction {
 			for(int j=0; j<labelIndices.size(); j++) {
 				this.pred[i][j] /= labelVotes[j];
 			}
+		}
+		
+		for(int j=0; j<labelVotes.length; j++) {
+			labelVotes[j] = 1;
 		}
 	}
 	

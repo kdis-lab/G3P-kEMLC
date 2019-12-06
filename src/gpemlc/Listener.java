@@ -25,7 +25,6 @@ import org.apache.commons.configuration.Configuration;
 import org.apache.commons.lang.builder.EqualsBuilder;
 
 import gpemlc.utils.Utils;
-import gpemlc.utils.Utils.ClassifierType;
 import mulan.data.MultiLabelInstances;
 import mulan.evaluation.Evaluation;
 import mulan.evaluation.measure.Measure;
@@ -312,6 +311,8 @@ public class Listener implements IAlgorithmListener, IConfigure
 		} catch (Exception e1) {
 			e1.printStackTrace();
 		}
+		
+		((Alg)event.getAlgorithm()).clear();
 		
 		// Close report file if necessary
 		if (reportOnFile  && reportFile != null) {

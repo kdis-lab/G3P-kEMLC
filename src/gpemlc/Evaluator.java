@@ -4,9 +4,8 @@ import java.sql.Timestamp;
 import java.util.Comparator;
 import java.util.Hashtable;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
+import gpemlc.utils.TreeUtils;
 import gpemlc.utils.Utils;
 import mulan.data.MultiLabelInstances;
 import mulan.evaluation.measure.InformationRetrievalMeasures;
@@ -136,19 +135,78 @@ public class Evaluator extends AbstractParallelEvaluator {
 		lock.unlock();
 		
 		String gen = ((StringTreeIndividual)ind).getGenotype();
-		System.out.println(gen);
 
 		double fitness = 0.0;
 		
 		//Get final predictions by reducing the tree
-		Prediction pred = reduce(gen,key);
+		Prediction pred = TreeUtils.reduce(gen, key, tablePredictions, fullTrainData.getNumInstances(), useConfidences);
 		
-		//Calculate fitness (ExF) with the reduced predictions
-		fitness = exF(pred, fullTrainData);
+		//If the tree does not cover all the labels, the fitness is negative
+		if(pred.labelIndices.size() != fullTrainData.getNumLabels()) {
+			//The fitness is lower (worse) as it cover less number of labels
+			//	In case of hipothetically selecting two negative fitness individuals in tournament, the one that cover more labels is selected
+			fitness = ((pred.labelIndices.size()*1.0) / fullTrainData.getNumLabels()) - 1;
+//			fitness = -1.0;
+		}
+		else {
+			//Calculate fitness (ExF) with the reduced predictions
+			fitness = 0.5*exF(pred, fullTrainData) + 0.5*maF(pred, fullTrainData);
+		}
 		
 		//Set individual fitness
 		ind.setFitness(new SimpleValueFitness(fitness));
-		System.out.println("f: " + fitness);
+	}
+	
+	/**
+	 * Calculate the Macro-averaged FMeasure (MaF) for given prediction of all instances and ground truth
+	 * 
+	 * @param pred Predictions
+	 * @param mlData Multi-label data
+	 * @return Macro-averaged FMeasure
+	 */
+	protected double maF(Prediction pred, MultiLabelInstances mlData) {
+		int[] labelIndices = mlData.getLabelIndices();
+		boolean [] ground = new boolean[mlData.getNumLabels()];
+		
+		int[] tp = new int[mlData.getNumLabels()];
+		int[] fp = new int[mlData.getNumLabels()];
+		int[] tn = new int[mlData.getNumLabels()];
+		int[] fn = new int[mlData.getNumLabels()];
+		
+		double maF = 0.0;
+		
+		for(int i=0; i<mlData.getNumInstances(); i++) {
+			boolean[] bip = utils.confidenceToBipartition(pred.pred[i], 0.5);
+			for(int j=0; j<mlData.getNumLabels(); j++) {
+				//Get ground truth for all labels in i-th instance
+				if(mlData.getDataSet().get(i).value(labelIndices[j]) >= 0.5) {
+					ground[j] = true;
+					if(bip[j]) {
+						tp[j]++;
+					}
+					else {
+						fn[j]++;
+					}
+				}
+				else {
+					ground[j] = false;
+					if(bip[j]) {
+						fp[j]++;
+					}
+					else {
+						tn[j]++;
+					}
+				}
+			}
+		}
+		
+		for(int j=0; j<mlData.getNumLabels(); j++) {
+			maF += InformationRetrievalMeasures.fMeasure(tp[j], fp[j], fn[j], 1);
+		}
+		maF /= mlData.getNumLabels();
+
+
+		return maF;
 	}
 	
 	/**
@@ -207,103 +265,5 @@ public class Evaluator extends AbstractParallelEvaluator {
 		}
 		
 		return InformationRetrievalMeasures.fMeasure(tp, fp, fn, 1.0);
-	}
-	
-	/**
-	 * Reduce the tree and obtain the final tree prediction
-	 * 
-	 * @param ind Individual, tree
-	 * @return Final tree prediction
-	 */
-	public Prediction reduce(String ind, String key) {
-		//Match two or more leaves (numer or _number) between parenthesis
-		Pattern pattern = Pattern.compile("\\((_?\\d+ )+_?\\d+\\)");
-		Matcher m = pattern.matcher(ind);
-		
-		//count to add predictions of combined nodes into the table
-		int count = 0;
-		Prediction pred = null;// = new Prediction(fullTrainData.getNumInstances(), fullTrainData.getNumLabels());
-		
-		while(m.find()) {
-			//Combine the predictions of current nodes
-			pred = combine(m.group(0), key);
-			
-			//Put combined predictions into the table
-			tablePredictions.put(key+"_"+count, pred);
-			
-			//Replace node in the genotype
-			ind = ind.substring(0, m.start()) + "_" + count + ind.substring(m.end(), ind.length());
-			
-			//Increment counter and match next one
-			count++;
-			m = pattern.matcher(ind);
-		}
-		
-		//Return final prediction
-		//	It is the combination of all nodes in level 1
-		return pred;
-	}
-	
-	/**
-	 * Combine the predictions of several nodes
-	 * 
-	 * @param nodes String with the nodes to combine
-	 * @return Combined prediction
-	 */
-	protected Prediction combine(String nodes, String key){
-		Prediction pred = null; //new Prediction(fullTrainData.getNumInstances(), fullTrainData.getNumLabels());
-		
-		Pattern pattern = Pattern.compile("\\d+");
-		Matcher m;
-		
-		int n, nPreds = 0;
-		
-		//Split the nodes by space, so get the leaves
-		String [] pieces = nodes.split(" ");
-		for(String piece : pieces) {
-			//Get index included in the piece and store in n
-			m = pattern.matcher(piece);
-			m.find();
-			n = Integer.parseInt(m.group(0));
-
-			//If the piece contains the character "_" is a combination of other nodes
-			if(piece.contains("_")) {
-				if(nPreds <= 0) {
-					//If it is the first predictions to get, create new Prediction object with them 
-					pred = new Prediction(tablePredictions.get(key+"_"+n));
-				}
-				else {
-					//Add to the current prediction, the prediction of one of the previously combined nodes
-					pred.addPrediction(tablePredictions.get(key+"_"+n));
-				}
-				
-				//Remove because it is not going to be used again
-				tablePredictions.remove(key+"_"+n);
-				nPreds++;
-			}
-			else {
-				if(nPreds <= 0) {
-					//If it is the first predictions to get, create new Prediction object with them 
-					pred = new Prediction(tablePredictions.get(String.valueOf(n)));
-				}
-				else {
-					//Add to the current prediction, the prediction of the corresponding classifier
-					pred.addPrediction(tablePredictions.get(String.valueOf(n)));
-				}
-				nPreds++;
-			}
-		}
-		
-		//Divide prediction by the number of learners and apply threshold if applicable
-		if(useConfidences) {
-			pred.divide();
-		}
-		else {
-			pred.divideAndThresholdPrediction(0.5);
-		}
-
-		//Return combined prediction of corresponding nodes
-		return pred;
-	}
-	
+	}	
 }

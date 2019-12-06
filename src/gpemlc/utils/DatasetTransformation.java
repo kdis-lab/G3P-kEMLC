@@ -57,10 +57,7 @@ public class DatasetTransformation {
 	 */
 	public MultiLabelInstances transformDataset(MultiLabelInstances originalDataset, List<Integer> genotype)
 	{	
-		originalLabelIndices = new int[genotype.size()];
-		for(int i=0; i<genotype.size(); i++) {
-			originalLabelIndices[i] = originalDataset.getLabelIndices()[genotype.get(i)];
-		}
+		originalLabelIndices = getOriginalLabelIndices(originalDataset.getLabelIndices(), genotype);
 		
 		configureFilter(originalDataset, genotype);
 		
@@ -79,6 +76,22 @@ public class DatasetTransformation {
 	    }
 	    
 	    return modifiedDataset;
+	}
+	
+	/**
+	 * Get the index of labels in the genotype corresponding to the original dataset
+	 * 
+	 * @param originalDataset Original dataset
+	 * @param genotype Genotype describing labels to keep
+	 * @return Index of kept labels in original dataset
+	 */
+	public int[] getOriginalLabelIndices(int[] fullLabelIndices, List<Integer> genotype) {
+		int[] originalLabelIndices = new int[genotype.size()];
+		for(int i=0; i<genotype.size(); i++) {
+			originalLabelIndices[i] = fullLabelIndices[genotype.get(i)];
+		}
+		
+		return originalLabelIndices;
 	}
 	
 	/**

@@ -5,6 +5,8 @@ import java.util.Hashtable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import gpemlc.utils.DatasetTransformation;
+import gpemlc.utils.KLabelset;
 import gpemlc.utils.Utils;
 import mulan.classifier.InvalidDataException;
 import mulan.classifier.MultiLabelLearner;
@@ -45,6 +47,11 @@ public class EMLC extends MultiLabelMetaLearner {
 	Hashtable<String, MultiLabelLearnerBase> learners;
 	
 	/**
+	 * Array of k-labelsets
+	 */
+	ArrayList<KLabelset> klabelsets;
+	
+	/**
 	 * Table with predictions of combined nodes
 	 */
 	Hashtable<String, Prediction> tablePredictions = new Hashtable<String, Prediction>();
@@ -59,6 +66,11 @@ public class EMLC extends MultiLabelMetaLearner {
 	 */
 	boolean useConfidences;
 
+	/**
+	 * Label indices of all labels in the data
+	 */
+	int[] labelIndices;
+	
 	/**
 	 * Constructor
 	 * 
@@ -77,6 +89,7 @@ public class EMLC extends MultiLabelMetaLearner {
 	public EMLC(MultiLabelLearner baseLearner, String genotype) {
 		super(baseLearner);
 		this.genotype = genotype;
+		this.klabelsets = null;
 		this.leaves = utils.getLeaves(genotype);
 		this.useConfidences = false;
 	}	
@@ -88,8 +101,9 @@ public class EMLC extends MultiLabelMetaLearner {
 	 * @param genotype Genotype of the individual tree
 	 * @param useConfidences true if confindences are used to combine predictions, false otherwise
 	 */
-	public EMLC(MultiLabelLearner baseLearner, String genotype, boolean useConfidences) {
+	public EMLC(MultiLabelLearner baseLearner, ArrayList<KLabelset> klabelsets, String genotype, boolean useConfidences) {
 		super(baseLearner);
+		this.klabelsets = klabelsets;
 		this.genotype = genotype;
 		this.leaves = utils.getLeaves(genotype);
 		this.useConfidences = useConfidences;
@@ -112,6 +126,9 @@ public class EMLC extends MultiLabelMetaLearner {
 		for(int i=0; i<leaves.size(); i++) {
 			learners.put(String.valueOf(leaves.get(i)), (MultiLabelLearnerBase) utils.loadObject("mlc/classifier"+leaves.get(i)+".mlc"));
 		}
+		
+		//Store the label indices of the original dataset
+		labelIndices = trainingSet.getLabelIndices();
 	}
 	
 	@Override
@@ -175,12 +192,14 @@ public class EMLC extends MultiLabelMetaLearner {
 	 * @return Combined prediction
 	 */
 	protected Prediction combine(String nodes, Instance instance){
-		Prediction pred = new Prediction(1); //(1, numLabels)
+		Prediction pred = new Prediction(1); //null; //new Prediction(1); //(1, numLabels)
 		
 		Pattern pattern = Pattern.compile("\\d+");
 		Matcher m;
 		
-		int n, nPreds = 0;
+		int n;
+		
+		DatasetTransformation dt = new DatasetTransformation();
 		
 		//Split the nodes by space, so get the leaves
 		String [] pieces = nodes.split(" ");
@@ -196,13 +215,11 @@ public class EMLC extends MultiLabelMetaLearner {
 				pred.addPrediction(tablePredictions.get("_"+n));
 				
 				//Remove because it is not going to be used again
-				learners.remove("_"+n);
-				nPreds++;
+				tablePredictions.remove("_"+n);
 			}
 			else {
 				//Add to the current prediction, the prediction of the corresponding classifier
-				pred.addPrediction(getPredictions(learners.get(String.valueOf(n)), instance));
-				nPreds++;
+				pred.addPrediction(dt.getOriginalLabelIndices(labelIndices, klabelsets.get(n).getKlabelset()), getPredictions(learners.get(String.valueOf(n)), instance));
 			}
 		}
 
