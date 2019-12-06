@@ -8,9 +8,14 @@ import net.sf.jclec.util.random.IRandGen;
 public class KLabelsetGenerator {
 
 	/**
-	 * Size of the k-labelsets
+	 * Min size of the k-labelsets
 	 */
-	int k;
+	int minK;
+	
+	/**
+	 * Max size of the k-labelsets
+	 */
+	int maxK;
 	
 	/**
 	 * Number of labels in the dataset
@@ -47,7 +52,8 @@ public class KLabelsetGenerator {
 	 * Empty constructor
 	 */
 	public KLabelsetGenerator() {
-		this.k = 0;
+		this.minK = 0;
+		this.maxK = 0;
 		this.nLabels = 0;
 		this.nLabelsets = 0;
 		this.freqBias = false;
@@ -61,8 +67,9 @@ public class KLabelsetGenerator {
 	 * @param k Size of the k-labelsets
 	 * @param nLabels Number of labels in the dataset
 	 */
-	public KLabelsetGenerator(int k, int nLabels) {
-		this.k = k;
+	public KLabelsetGenerator(int minK, int maxK, int nLabels) {
+		this.minK = minK;
+		this.maxK = maxK;
 		this.nLabels = nLabels;
 		this.nLabelsets = 0;
 		this.freqBias = false;
@@ -77,8 +84,9 @@ public class KLabelsetGenerator {
 	 * @param nLabels Number of labels in the dataset
 	 * @param nLabelsets Number of labelsets to generate
 	 */
-	public KLabelsetGenerator(int k, int nLabels, int nLabelsets) {
-		this.k = k;
+	public KLabelsetGenerator(int minK, int maxK, int nLabels, int nLabelsets) {
+		this.minK = minK;
+		this.maxK = maxK;
 		this.nLabels = nLabels;
 		this.nLabelsets = nLabelsets;
 		this.freqBias = false;
@@ -118,7 +126,7 @@ public class KLabelsetGenerator {
 	 * 
 	 * @return Randomly generated k-labelset
 	 */
-	private KLabelset randomKLabelset() {
+	private KLabelset randomKLabelset(int k) {
 		ArrayList<Integer> klabelset = new ArrayList<Integer>(k);
 		
 		int r;
@@ -131,7 +139,11 @@ public class KLabelsetGenerator {
 		
 		Collections.sort(klabelset);
 		
-		return new KLabelset(this.k, this.nLabels, klabelset);
+		return new KLabelset(k, this.nLabels, klabelset);
+	}
+	
+	private KLabelset randomKLabelset(int minK, int maxK) {
+		return randomKLabelset(randgen.choose(minK, maxK+1));
 	}
 	
 	public ArrayList<KLabelset> generateKLabelsets(int nLabelsets){
@@ -143,7 +155,8 @@ public class KLabelsetGenerator {
 		if(! freqBias) {
 			do {
 				//Add a randomly generated k-labelset if it did not exist
-				nextKLabelset = randomKLabelset();
+				nextKLabelset = randomKLabelset(this.minK, this.maxK);
+				
 				if(! klabelsets.contains(nextKLabelset)) {
 					klabelsets.add(nextKLabelset);
 				}
@@ -170,6 +183,6 @@ public class KLabelsetGenerator {
 	}
 	
 	public void printKLabelsets() {
-		System.out.println("k: " + k + "; nL: " + nLabels + "; --> " + klabelsets.toString());
+		System.out.println("k: [" + minK + ", " + maxK + "]; nL: " + nLabels + "; --> " + klabelsets.toString());
 	}
 }

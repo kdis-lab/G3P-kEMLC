@@ -7,7 +7,7 @@ public class KLabelset {
 	/**
 	 * Size of the k-labelset
 	 */
-	int k;
+	public int k;
 	
 	/**
 	 * Number of labels in the dataset

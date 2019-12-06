@@ -66,9 +66,14 @@ public class Alg extends SGE {
 	int maxDepth;
 	
 	/**
-	 * Size of the k-labelsets
+	 * Minimum size of the k-labelsets
 	 */
-	int k;
+	int minK;
+	
+	/**
+	 * Maximum size of the k-labelsets
+	 */
+	int maxK;
 	
 	/**
 	 * Full training dataset
@@ -192,7 +197,8 @@ public class Alg extends SGE {
 		
 		sampleRatio = configuration.getDouble("sampling-ratio");
 		
-		k = configuration.getInt("k");
+		minK = configuration.getInt("min-k");
+		maxK = configuration.getInt("max-k");
 		nMLC = configuration.getInt("different-classifiers");
 		maxChildren = configuration.getInt("max-children");
 		maxDepth = configuration.getInt("max-depth");
@@ -212,7 +218,7 @@ public class Alg extends SGE {
 			}
 			
 			//Generate k-labelsets
-			KLabelsetGenerator klabelsetGen = new KLabelsetGenerator(k, fullTrainData.getNumLabels(), nMLC);
+			KLabelsetGenerator klabelsetGen = new KLabelsetGenerator(minK, maxK, fullTrainData.getNumLabels(), nMLC);
 			klabelsetGen.setRandgen(randgen);
 			klabelsets = klabelsetGen.generateKLabelsets();
 			klabelsetGen.printKLabelsets();
@@ -367,7 +373,6 @@ public class Alg extends SGE {
 			else {
 				currentFullData = dt.transformDataset(fullTrainData, klabelsets.get(c).getKlabelset());
 			}
-//			currentFullData = currentTrainData;
 			//Build
 			learner.build(currentTrainData);
 			
@@ -375,7 +380,7 @@ public class Alg extends SGE {
 			utils.writeObject(learner, "mlc/classifier"+c+".mlc");
 			
 			//Get predictions of c-th classifier over all data
-			double[][] currentPredictions = new double[currentFullData.getNumInstances()][k];
+			double[][] currentPredictions = new double[currentFullData.getNumInstances()][klabelsets.get(c).k];
 			for(int i=0; i<currentFullData.getNumInstances(); i++) {
 				if(useConfidences) {
 					System.arraycopy(learner.makePrediction(currentFullData.getDataSet().get(i)).getConfidences(), 0, currentPredictions[i], 0, currentFullData.getNumLabels());
@@ -406,84 +411,84 @@ public class Alg extends SGE {
 		}		
 	}
 	
-	protected void doUpdate() 
-	{
-		IIndividual bestb = bettersSelector.select(bset, 1).get(0);
-		IIndividual bestc = bettersSelector.select(cset, 1).get(0);
-		
-		ArrayList<IIndividual> toRemove = new ArrayList<IIndividual>();
-		for(IIndividual ind : cset) {
-			if(((SimpleValueFitness)ind.getFitness()).getValue() < 0) {
-				toRemove.add(ind);
-			}
-		}
-//		System.out.println("remove: " + toRemove.size());
-		for(IIndividual ind : toRemove) {
-			cset.remove(ind);
-		}
-		
-		int csetSpace = populationSize - cset.size();
-		if(csetSpace <= 0) {
-			if (evaluator.getComparator().compare(bestb.getFitness(), bestc.getFitness()) == 1) {
-				IIndividual worstc = worsesSelector.select(cset, 1).get(0);
-				cset.remove(worstc);
-				cset.add(bestb);
-			}
-		}
-		else {
-			bset = bettersSelector.select(bset, bset.size());
-			for(int i=0; i<csetSpace; i++) {
-				cset.add(bset.get(i));
-			}
-		}
+//	protected void doUpdate() 
+//	{
+//		IIndividual bestb = bettersSelector.select(bset, 1).get(0);
+//		IIndividual bestc = bettersSelector.select(cset, 1).get(0);
 //		
-//		for(int i=0; i<nBest; i++) {
-//			if (evaluator.getComparator().compare(bestb.get(i).getFitness(), bestc.getFitness()) == 1) {
-//				IIndividual worstc = worsesSelector.select(cset, 1).get(0);
-//				cset.remove(worstc);
-//				cset.add(bestb.get(i));
-//			}
-//			else {
-//				break;
-//			}
-//		}
-//		
-//		IIndividual rInd;
-//		List<IIndividual> toRemove = new ArrayList<IIndividual>();
-//		List<IIndividual> toAdd = new ArrayList<IIndividual>();
+//		ArrayList<IIndividual> toRemove = new ArrayList<IIndividual>();
 //		for(IIndividual ind : cset) {
 //			if(((SimpleValueFitness)ind.getFitness()).getValue() < 0) {
-//				do {
-//					rInd = bset.get(randgen.choose(0, bset.size()));
-//				}while(((SimpleValueFitness)rInd.getFitness()).getValue() < 0);
 //				toRemove.add(ind);
-//				toAdd.add(rInd);
 //			}
 //		}
-//		
+////		System.out.println("remove: " + toRemove.size());
 //		for(IIndividual ind : toRemove) {
-//			if(cset.contains(ind)) {
-//				cset.remove(ind);
+//			cset.remove(ind);
+//		}
+//		
+//		int csetSpace = populationSize - cset.size();
+//		if(csetSpace <= 0) {
+//			if (evaluator.getComparator().compare(bestb.getFitness(), bestc.getFitness()) == 1) {
+//				IIndividual worstc = worsesSelector.select(cset, 1).get(0);
+//				cset.remove(worstc);
+//				cset.add(bestb);
 //			}
 //		}
-//		
-//		for(IIndividual ind : toAdd) {
-//			if(cset.contains(ind)) {
-//				cset.add(ind);
+//		else {
+//			bset = bettersSelector.select(bset, bset.size());
+//			for(int i=0; i<csetSpace; i++) {
+//				cset.add(bset.get(i));
 //			}
 //		}
+////		
+////		for(int i=0; i<nBest; i++) {
+////			if (evaluator.getComparator().compare(bestb.get(i).getFitness(), bestc.getFitness()) == 1) {
+////				IIndividual worstc = worsesSelector.select(cset, 1).get(0);
+////				cset.remove(worstc);
+////				cset.add(bestb.get(i));
+////			}
+////			else {
+////				break;
+////			}
+////		}
+////		
+////		IIndividual rInd;
+////		List<IIndividual> toRemove = new ArrayList<IIndividual>();
+////		List<IIndividual> toAdd = new ArrayList<IIndividual>();
+////		for(IIndividual ind : cset) {
+////			if(((SimpleValueFitness)ind.getFitness()).getValue() < 0) {
+////				do {
+////					rInd = bset.get(randgen.choose(0, bset.size()));
+////				}while(((SimpleValueFitness)rInd.getFitness()).getValue() < 0);
+////				toRemove.add(ind);
+////				toAdd.add(rInd);
+////			}
+////		}
+////		
+////		for(IIndividual ind : toRemove) {
+////			if(cset.contains(ind)) {
+////				cset.remove(ind);
+////			}
+////		}
+////		
+////		for(IIndividual ind : toAdd) {
+////			if(cset.contains(ind)) {
+////				cset.add(ind);
+////			}
+////		}
+////		
+////		while(cset.size() < populationSize) {
+////			cset.add(bset.get(randgen.choose(0, bset.size())));
+////		}
+////		
+//		// Sets new bset
+//		bset = cset;
+//		// Clear pset, rset & cset
+//		pset = null;
+//		rset = null;
+//		cset = null;
 //		
-//		while(cset.size() < populationSize) {
-//			cset.add(bset.get(randgen.choose(0, bset.size())));
-//		}
-//		
-		// Sets new bset
-		bset = cset;
-		// Clear pset, rset & cset
-		pset = null;
-		rset = null;
-		cset = null;
-		
-	}
+//	}
 	
 }
