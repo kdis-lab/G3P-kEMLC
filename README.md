@@ -1,4 +1,4 @@
-# GP-kEMLC: Genetic Programming algorithm to create Ensembles of Multi-Label Classifiers
+# G3P-kEMLC: A Grammar-Guided Genetic Programming algorithm to create Ensembles of Multi-Label Classifiers
 
 More information about this algorithm will be provided soon.
 
