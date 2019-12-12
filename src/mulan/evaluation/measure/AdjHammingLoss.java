@@ -14,23 +14,21 @@
  *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-/*
- *    ExampleBasedAccuracy.java
- *    Copyright (C) 2009-2012 Aristotle University of Thessaloniki, Greece
- */
 package mulan.evaluation.measure;
 
 /**
- * Implementation of the example-based accuracy measure.
+ * Implementation of the Adjusted Hamming loss (AHL)
+ * 
+ * 	More information about AHL in:
+ * 		F. Charte, A. J. Rivera, M. J. del Jesus, and F. Herrera. (2014). 
+ * 		MLeNN: a first approach to heuristic multilabel undersampling.
+ * 		In International Conference on Intelligent Data Engineering and Automated Learning (pp. 1-9).
  *
- * @author Grigorios Tsoumakas
- * @version 2010.11.05
+ * @author Jose M. Moyano
  */
-public class ModHammingLoss extends ExampleBasedBipartitionMeasureBase {
+public class AdjHammingLoss extends ExampleBasedBipartitionMeasureBase {
 
-    /**
-	 * 
-	 */
+    /** serialVersionUID */
 	private static final long serialVersionUID = -2879257844937816754L;
 	
 	private final double forgivenessRate;
@@ -38,7 +36,7 @@ public class ModHammingLoss extends ExampleBasedBipartitionMeasureBase {
     /**
      * Constructs a new object
      */
-    public ModHammingLoss() {
+    public AdjHammingLoss() {
         this(1.0);
     }
 
@@ -47,12 +45,12 @@ public class ModHammingLoss extends ExampleBasedBipartitionMeasureBase {
      *
      * @param aForgivenessRate the forgiveness rate
      */
-    public ModHammingLoss(double aForgivenessRate) {
+    public AdjHammingLoss(double aForgivenessRate) {
         forgivenessRate = aForgivenessRate;
     }
 
     public String getName() {
-        return "Modified Hamming Loss";
+        return "Adjusted Hamming Loss";
     }
 
     public double getIdealValue() {
@@ -73,7 +71,7 @@ public class ModHammingLoss extends ExampleBasedBipartitionMeasureBase {
         }
 
         if (union == 0) {
-            sum += Math.pow(1, forgivenessRate);
+            sum += Math.pow(0, forgivenessRate);
         } else {
             sum += Math.pow(intersection / union, forgivenessRate);
         }
