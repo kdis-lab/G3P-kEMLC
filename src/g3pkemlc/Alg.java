@@ -328,10 +328,10 @@ public class Alg extends SGE {
 			//Generate ensemble object
 			ensemble = new EMLC(learner, klabelsets, bestGenotype, useConfidences);
 			
-			System.out.println(Arrays.toString(TreeUtils.votesPerLabel(bestGenotype, klabelsets, fullTrainData.getNumLabels())));
+			System.out.println("Votes per label: " + Arrays.toString(TreeUtils.votesPerLabel(bestGenotype, klabelsets, fullTrainData.getNumLabels())));
 			
 			//Print the leaves; i.e., different classifiers used in the ensemble
-			System.out.println(utils.getLeaves(bestGenotype));
+			//System.out.println(utils.getLeaves(bestGenotype));
 			
 			try {
 				//Build the ensemble
