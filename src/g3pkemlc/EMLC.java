@@ -1,13 +1,13 @@
-package gpemlc;
+package g3pkemlc;
 
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import gpemlc.utils.DatasetTransformation;
-import gpemlc.utils.KLabelset;
-import gpemlc.utils.Utils;
+import g3pkemlc.utils.DatasetTransformation;
+import g3pkemlc.utils.KLabelset;
+import g3pkemlc.utils.Utils;
 import mulan.classifier.InvalidDataException;
 import mulan.classifier.MultiLabelLearner;
 import mulan.classifier.MultiLabelLearnerBase;
@@ -19,7 +19,7 @@ import weka.core.Instance;
 import weka.core.TechnicalInformation;
 
 /**
- * Class implementing the ensemble for the GP-EMLC algorithm.
+ * Class implementing the ensemble for the G3P-kEMLC algorithm.
  * 
  * @author Jose M. Moyano
  *

@@ -1,4 +1,4 @@
-package gpemlc;
+package g3pkemlc;
 
 import net.sf.jclec.util.random.AbstractRandGenFactory;
 import net.sf.jclec.util.random.IRandGen;

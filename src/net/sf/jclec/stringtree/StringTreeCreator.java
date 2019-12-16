@@ -1,6 +1,6 @@
 package net.sf.jclec.stringtree;
 
-import gpemlc.IndividualCreator;
+import g3pkemlc.IndividualCreator;
 import net.sf.jclec.ISpecies;
 
 import net.sf.jclec.base.AbstractCreator;

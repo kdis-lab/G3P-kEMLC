@@ -1,12 +1,12 @@
-package gpemlc;
+package g3pkemlc;
 
 import java.sql.Timestamp;
 import java.util.Comparator;
 import java.util.Hashtable;
 import java.util.concurrent.locks.ReentrantLock;
 
-import gpemlc.utils.TreeUtils;
-import gpemlc.utils.Utils;
+import g3pkemlc.utils.TreeUtils;
+import g3pkemlc.utils.Utils;
 import mulan.data.MultiLabelInstances;
 import mulan.evaluation.measure.InformationRetrievalMeasures;
 import net.sf.jclec.IFitness;
@@ -62,6 +62,11 @@ public class Evaluator extends AbstractParallelEvaluator {
 	boolean useConfidences;
 	
 	/**
+	 * Beta for fitness
+	 */
+	double beta;
+	
+	/**
 	 * Random numbers generator
 	 */
 	IRandGen randgen;
@@ -114,6 +119,15 @@ public class Evaluator extends AbstractParallelEvaluator {
 	}
 	
 	/**
+	 * Setter for beta
+	 * 
+	 * @param beta beta value for fitness
+	 */
+	public void setBeta(double beta) {
+		this.beta = beta;
+	}
+	
+	/**
 	 * Setter for randgen
 	 * 
 	 * @param randgen Randgen
@@ -150,7 +164,7 @@ public class Evaluator extends AbstractParallelEvaluator {
 		}
 		else {
 			//Calculate fitness (ExF) with the reduced predictions
-			fitness = 0.5*exF(pred, fullTrainData) + 0.5*maF(pred, fullTrainData);
+			fitness = beta*exF(pred, fullTrainData) + (1-beta)*maF(pred, fullTrainData);
 //			fitness = exF(pred, fullTrainData);
 		}
 		

@@ -1,9 +1,9 @@
-package gpemlc;
+package g3pkemlc;
 
 import net.sf.jclec.util.random.IRandGen;
 
 /**
- * Class implementing the individual creator for GP-EMLC individuals
+ * Class implementing the individual creator for G3P-kEMLC individuals
  * 
  * @author Jose M. Moyano
  *

@@ -1,4 +1,4 @@
-package gpemlc.utils;
+package g3pkemlc.utils;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -44,16 +44,12 @@ import mulan.evaluation.measure.SubsetAccuracy;
 import net.sf.jclec.util.random.IRandGen;
 
 /**
- * Class implementing several utilities to deal with GP-EMLC individuals
+ * Class implementing several utilities to deal with G3P-kEMLC individuals
  * 
  * @author Jose M. Moyano
  *
  */
 public class Utils {
-	
-	public static enum ClassifierType{
-		BR, LP, CC, PS, kLabelset;
-	}
 	
 	/**
 	 * Random numbers generator

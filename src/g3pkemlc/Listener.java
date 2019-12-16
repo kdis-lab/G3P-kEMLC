@@ -1,4 +1,4 @@
-package gpemlc;
+package g3pkemlc;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -25,8 +25,8 @@ import org.apache.commons.configuration.Configuration;
 
 import org.apache.commons.lang.builder.EqualsBuilder;
 
-import gpemlc.utils.TreeUtils;
-import gpemlc.utils.Utils;
+import g3pkemlc.utils.TreeUtils;
+import g3pkemlc.utils.Utils;
 import mulan.data.MultiLabelInstances;
 import mulan.evaluation.Evaluation;
 import mulan.evaluation.measure.Measure;

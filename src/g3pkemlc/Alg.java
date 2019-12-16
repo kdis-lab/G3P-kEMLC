@@ -1,4 +1,4 @@
-package gpemlc;
+package g3pkemlc;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -12,14 +12,14 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.commons.configuration.Configuration;
 
-import gpemlc.utils.DatasetTransformation;
-import gpemlc.utils.KLabelset;
-import gpemlc.utils.KLabelsetGenerator;
-import gpemlc.utils.MulanUtils;
-import gpemlc.utils.TreeUtils;
-import gpemlc.utils.Utils;
-import gpemlc.mutator.Mutator;
-import gpemlc.recombinator.Crossover;
+import g3pkemlc.mutator.Mutator;
+import g3pkemlc.recombinator.Crossover;
+import g3pkemlc.utils.DatasetTransformation;
+import g3pkemlc.utils.KLabelset;
+import g3pkemlc.utils.KLabelsetGenerator;
+import g3pkemlc.utils.MulanUtils;
+import g3pkemlc.utils.TreeUtils;
+import g3pkemlc.utils.Utils;
 import mulan.classifier.MultiLabelLearnerBase;
 import mulan.classifier.transformation.LabelPowerset2;
 import mulan.data.MultiLabelInstances;
@@ -139,6 +139,11 @@ public class Alg extends SGE {
 	Lock lock = new ReentrantLock();
 	
 	/**
+	 * Beta for fitness
+	 */
+	double beta;
+	
+	/**
 	 * Getter for test data
 	 * 
 	 * @return Test data
@@ -165,8 +170,61 @@ public class Alg extends SGE {
 		return ensemble;
 	}
 	
+	/**
+	 * Configure some default aspects and parameters of EME to make the configuration easier
+	 * 
+	 * @param configuration Configuration
+	 */
+	private void configureDefaults(Configuration configuration) {
+		//Species
+		configuration.setProperty("species[@type]", "net.sf.jclec.stringtree.StringTreeIndividualSpecies");
+		configuration.setProperty("species[@genotype-length]", "0");
+		
+		//Evaluator (only if not provided)
+		if(! configuration.containsKey("evaluator[@type]")) {
+			configuration.addProperty("evaluator[@type]", "g3pkemlc.Evaluator");
+		}
+		
+		//Provider (only if not provided)
+		if(! configuration.containsKey("provider[@type]")) {
+			configuration.addProperty("provider[@type]", "net.sf.jclec.stringtree.StringTreeCreator");
+		}
+		
+		//Randgen type (only if not provided)
+		if(! configuration.containsKey("rand-gen-factory[@type]")) {
+			configuration.addProperty("rand-gen-factory[@type]", "g3pkemlc.RanecuFactory2");
+		}
+		
+		//Parents-selector (only if not provided)
+		if(! configuration.containsKey("parents-selector[@type]")) {
+			configuration.addProperty("parents-selector[@type]", "net.sf.jclec.selector.TournamentSelector");
+		}
+		if(! configuration.containsKey("parents-selector.tournament-size")) {
+			configuration.addProperty("parents-selector.tournament-size", "2");
+		}
+		
+		//Crossover and mutation operators (only if not provided)
+		if(! configuration.containsKey("recombinator[@type]")) {
+			configuration.addProperty("recombinator[@type]", "g3pkemlc.recombinator.Crossover");
+		}
+		if(! configuration.containsKey("mutator[@type]")) {
+			configuration.addProperty("mutator[@type]", "g3pkemlc.mutator.Mutator");
+		}
+		
+		//Use confidences (only if not provided)
+		if(! configuration.containsKey("use-confidences")) {
+			configuration.addProperty("use-confidences", "false");
+		}
+		
+		//Listener type (only if not provided)
+		if(! configuration.containsKey("listener[@type]")) {
+			configuration.addProperty("listener[@type]", "g3pkemlc.Listener");
+		}
+	}
+	
 	@Override
 	public void configure(Configuration configuration) {
+		configureDefaults(configuration);
 		super.configure(configuration);
 		
 		seed = configuration.getInt("rand-gen-factory[@seed]");
@@ -190,6 +248,7 @@ public class Alg extends SGE {
 		maxChildren = configuration.getInt("max-children");
 		maxDepth = configuration.getInt("max-depth");
 		useConfidences = configuration.getBoolean("use-confidences");
+		beta = configuration.getDouble("beta");
 		
 		fullTrainData = null;
 		currentTrainData = null;
@@ -246,6 +305,7 @@ public class Alg extends SGE {
 		((Evaluator)evaluator).setFullTrainData(fullTrainData);
 		((Evaluator)evaluator).setTablePredictions(tablePredictions);
 		((Evaluator)evaluator).setUseConfidences(useConfidences);
+		((Evaluator)evaluator).setBeta(beta);
 		((Evaluator)evaluator).setRandgen(randgen);
 	}
 	

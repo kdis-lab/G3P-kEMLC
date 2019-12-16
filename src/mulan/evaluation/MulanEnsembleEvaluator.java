@@ -2,7 +2,7 @@ package mulan.evaluation;
 
 import java.util.List;
 
-import gpemlc.EMLC;
+import g3pkemlc.EMLC;
 import mulan.classifier.MultiLabelLearner;
 import mulan.data.MultiLabelInstances;
 import mulan.evaluation.Evaluation;

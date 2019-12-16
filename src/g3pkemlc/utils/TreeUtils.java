@@ -1,14 +1,14 @@
-package gpemlc.utils;
+package g3pkemlc.utils;
 
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import gpemlc.Prediction;
+import g3pkemlc.Prediction;
 
 /**
- * Class implementing some utils of the GP-EMLC Tree individuals, such as obtain final prediction, or number of votes of each label.
+ * Class implementing some utils of the G3P-kEMLC Tree individuals, such as obtain final prediction, or number of votes of each label.
  * 
  * @author Jose M. Moyano
  *
