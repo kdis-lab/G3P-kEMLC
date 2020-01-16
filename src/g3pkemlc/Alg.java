@@ -24,6 +24,7 @@ import mulan.classifier.MultiLabelLearnerBase;
 import mulan.classifier.transformation.LabelPowerset2;
 import mulan.data.MultiLabelInstances;
 import net.sf.jclec.algorithm.classic.SGE;
+import net.sf.jclec.fitness.SimpleValueFitness;
 import net.sf.jclec.selector.BettersSelector;
 import net.sf.jclec.stringtree.StringTreeCreator;
 import net.sf.jclec.stringtree.StringTreeIndividual;
@@ -144,6 +145,36 @@ public class Alg extends SGE {
 	double beta;
 	
 	/**
+	 * Frequency of reports over test data
+	 */
+	double testReportFrequency;
+	
+	/**
+	 * Last fitness of best individual that surpassed the specified threshold
+	 */
+	double lastBestFitness;
+	
+	/**
+	 * Last generation when an individual surpassed the specified fitness threshold of last best
+	 */
+	int lastBestInter;
+	
+	/**
+	 * Maximum allowed number of iterations for the algorithm if it is stucked without improved more than the given fitness threshold
+	 */
+	int maxStuckGenerations;
+	
+	/**
+	 * Percentage of improvement of fitness to consider that the evolution is not stuck
+	 */
+	double improvementPercentageThreshold;
+	
+	/**
+	 * Indicates when the algorithm is finished (due to max of generations or stuck algorithm)
+	 */
+	boolean finishAlgorithm = false;
+	
+	/**
 	 * Getter for test data
 	 * 
 	 * @return Test data
@@ -250,6 +281,11 @@ public class Alg extends SGE {
 		useConfidences = configuration.getBoolean("use-confidences");
 		beta = configuration.getDouble("beta");
 		
+		testReportFrequency = configuration.getInt("test-report-frequency", maxOfGenerations);
+		
+		improvementPercentageThreshold = configuration.getDouble("improvement-percentage");
+		maxStuckGenerations = configuration.getInt("max-stuck-generations");
+		
 		fullTrainData = null;
 		currentTrainData = null;
 		testData = null;
@@ -317,10 +353,26 @@ public class Alg extends SGE {
 	@Override
 	protected void doControl()
 	{		
-		//Get genotype of best individual
-		String bestGenotype = ((StringTreeIndividual)bselector.select(bset, 1).get(0)).getGenotype();
+		StringTreeIndividual bestInd = (StringTreeIndividual)bselector.select(bset, 1).get(0);
+		double bestFit = ((SimpleValueFitness)bestInd.getFitness()).getValue();
 		
-		if (generation >= maxOfGenerations) {			
+		if(bestFit > lastBestFitness*(1+improvementPercentageThreshold)) {
+			lastBestFitness = bestFit;
+			lastBestInter = generation;
+		}
+		
+		if((generation - lastBestInter) >= maxStuckGenerations) {
+			System.out.println("Finished in generation " + generation);
+		}
+		
+		//Get genotype of best individual
+		String bestGenotype = bestInd.getGenotype();
+		
+		if (generation >= maxOfGenerations || (generation - lastBestInter) >= maxStuckGenerations) {
+			finishAlgorithm = true;
+		}
+		
+		if(generation%testReportFrequency == 0 || generation >= maxOfGenerations || finishAlgorithm) {
 			//Get base learner
 			learner = new LabelPowerset2(new J48());
 			((LabelPowerset2)learner).setSeed(seed);
@@ -328,20 +380,23 @@ public class Alg extends SGE {
 			//Generate ensemble object
 			ensemble = new EMLC(learner, klabelsets, bestGenotype, useConfidences);
 			
+			try {
+				//Build the ensemble
+				ensemble.build(fullTrainData);		
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+		
+		if (finishAlgorithm) {
+			//Print votes per label
 			System.out.println("Votes per label: " + Arrays.toString(TreeUtils.votesPerLabel(bestGenotype, klabelsets, fullTrainData.getNumLabels())));
 			
 			//Print the leaves; i.e., different classifiers used in the ensemble
 			//System.out.println(utils.getLeaves(bestGenotype));
 			
-			try {
-				//Build the ensemble
-				ensemble.build(fullTrainData);
-				
-				//After building the ensemble, we can remove all the classifiers built and stored in hard disk
-				utils.purgeDirectory(new File("mlc/"));				
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
+			//When the algorithm is finished, we can remove all the classifiers built and stored in hard disk
+			utils.purgeDirectory(new File("mlc/"));	
 			
 			state = FINISHED;
 			return;
