@@ -209,7 +209,7 @@ public class Listener implements IAlgorithmListener, IConfigure
 		boolean saveCompletePopulation = settings.getBoolean("save-complete-population", false);
 		setSaveCompletePopulation(saveCompletePopulation);	
 		
-		testReportFrequency = settings.getInt("test-report-frequency", 10); 
+		testReportFrequency = settings.getInt("test-report-frequency", Integer.MAX_VALUE); 
 	}
 
 	// IAlgorithmListener interface

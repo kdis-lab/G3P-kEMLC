@@ -281,7 +281,7 @@ public class Alg extends SGE {
 		useConfidences = configuration.getBoolean("use-confidences");
 		beta = configuration.getDouble("beta");
 		
-		testReportFrequency = configuration.getInt("test-report-frequency", maxOfGenerations);
+		testReportFrequency = configuration.getInt("listener.test-report-frequency", maxOfGenerations);
 		
 		improvementPercentageThreshold = configuration.getDouble("improvement-percentage");
 		maxStuckGenerations = configuration.getInt("max-stuck-generations");
@@ -361,14 +361,11 @@ public class Alg extends SGE {
 			lastBestInter = generation;
 		}
 		
-		if((generation - lastBestInter) >= maxStuckGenerations) {
-			System.out.println("Finished in generation " + generation);
-		}
-		
 		//Get genotype of best individual
 		String bestGenotype = bestInd.getGenotype();
 		
 		if (generation >= maxOfGenerations || (generation - lastBestInter) >= maxStuckGenerations) {
+			System.out.println("Finished in generation " + generation);
 			finishAlgorithm = true;
 		}
 		
