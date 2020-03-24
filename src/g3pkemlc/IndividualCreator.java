@@ -23,7 +23,7 @@ public class IndividualCreator {
 	 * Setter for randgen
 	 * @param rangen
 	 */
-	public void setRangen(IRandGen randgen) {
+	public void setRandgen(IRandGen randgen) {
 		this.randgen = randgen;
 	}
 	
@@ -91,6 +91,8 @@ public class IndividualCreator {
 			}
 		}while(ind.charAt(pos) != ';'); //Finish when the end character ";" is found
 		
+//		System.out.println(ind);
+		
 		return ind;
 	}
 	
@@ -102,8 +104,14 @@ public class IndividualCreator {
 	 */
 	private String child(int n) {
 		//Start with open parenthesis
-		String child = "(";
-		
+		String child = "";
+		if(randgen.coin()) {
+			child = "(v ";
+		}
+		else {
+			child = "(v ";
+		}
+
 		//Add n times the "C" and a space
 		for(int i=0; i<n; i++) {
 			child += "C ";
@@ -121,7 +129,7 @@ public class IndividualCreator {
 	 * @param maxChildren Max number of children
 	 * @return String
 	 */
-	private String childRandomSize(int maxChildren) {
+	protected String childRandomSize(int maxChildren) {
 		return child(randgen.choose(2, maxChildren+1)); //between 2 and max, included
 	}
 	

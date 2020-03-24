@@ -19,6 +19,8 @@
 
     <improvement-percentage>0.001</improvement-percentage>
     <max-stuck-generations>10</max-stuck-generations>
+
+    <use-confidences>false</use-confidences>
   
     <beta>0.5</beta>
 

@@ -6,6 +6,7 @@ import java.io.FileOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -42,6 +43,7 @@ import mulan.evaluation.measure.OneError;
 import mulan.evaluation.measure.RankingLoss;
 import mulan.evaluation.measure.SubsetAccuracy;
 import net.sf.jclec.util.random.IRandGen;
+import weka.core.Instance;
 
 /**
  * Class implementing several utilities to deal with G3P-kEMLC individuals
@@ -509,5 +511,46 @@ public class Utils {
 	public boolean fileExist(String filename) {
 		File tempFile = new File(filename);
 		return tempFile.exists();
+	}
+	
+	/**
+	 * Calculates the appearances of each label of the dataset
+	 * 
+	 * @param mlData Multi-label dataset
+	 * 
+	 * @return Array with the number of appearances of each label
+	 */
+	public static int [] calculateAppearances(MultiLabelInstances mlData){
+		int nLabels = mlData.getNumLabels();
+		int [] appearances = new int[nLabels];
+		
+		int [] labelIndices = mlData.getLabelIndices();
+		
+		for(Instance instance : mlData.getDataSet()){
+			for(int l=0; l<nLabels; l++){
+				appearances[l] += instance.value(labelIndices[l]);
+			}
+		}
+		
+		return appearances;
+	}
+	
+	/**
+	 * Calculates the frequency of each label
+	 * 
+	 * @param mlData Multi-label dataset
+	 * 
+	 * @return Array with frequencies of each label
+	 */
+	public static double [] calculateFrequencies(MultiLabelInstances mlData) {
+		int [] apparances = calculateAppearances(mlData);
+		
+		double [] weights = new double[apparances.length];
+		
+		for(int i=0; i<apparances.length; i++) {
+			weights[i] = (apparances[i]*1.0) / mlData.getNumInstances();
+		}
+		
+		return weights;
 	}
 }

@@ -38,17 +38,17 @@ public class StringTreeCreator extends AbstractCreator
 	/**
 	 * Max number of children at each node
 	 */
-	int maxChildren;
+	protected int maxChildren;
 	
 	/**
 	 * Max depth of the tree
 	 */
-	int maxDepth;
+	protected int maxDepth;
 	
 	/**
 	 * Max value for the leaves
 	 */
-	int nMax;
+	protected int nMax;
 	
 
 	/////////////////////////////////////////////////////////////////
@@ -150,7 +150,7 @@ public class StringTreeCreator extends AbstractCreator
 	/**
 	 * Create a byte [] genotype, filling it randomly
 	 */
-	private final String createGenotype()
+	private String createGenotype()
 	{
 		IndividualCreator creator = new IndividualCreator(randgen);
 		return creator.create(nMax, maxDepth, maxChildren);

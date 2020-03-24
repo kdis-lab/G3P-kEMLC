@@ -1,0 +1,41 @@
+<experiment>
+  <process algorithm-type="g3pkemlc.Alg">
+    <rand-gen-factory multi="true">
+      <rand-gen-factory seed="20"/>
+    </rand-gen-factory>
+
+    <population-size>50</population-size>
+    <max-of-generations>200</max-of-generations>
+
+    <recombinator rec-prob="0.7" />
+    <mutator mut-prob="0.2" />    
+
+    <min-k>2</min-k>
+    <max-k>4</max-k>
+    <max-depth>3</max-depth>
+    <max-children>7</max-children>
+    <different-classifiers>20</different-classifiers>
+    <sampling-ratio>0.75</sampling-ratio>
+
+    <improvement-percentage>0.001</improvement-percentage>
+    <max-stuck-generations>10</max-stuck-generations>
+
+    <use-confidences>false</use-confidences>
+  
+    <beta>0.5</beta>
+
+    <dataset multi="true">
+      <dataset>
+        <train-dataset>data/Emotions/Emotions-train1.arff</train-dataset>
+        <test-dataset>data/Emotions/Emotions-test1.arff</test-dataset>
+        <xml>data/Emotions/Emotions.xml</xml>
+      </dataset>
+    </dataset>	
+
+    <listener type="g3pkemlc.Listener">
+      <report-dir-name>reports/GP-EMLC</report-dir-name>
+      <global-report-name>summaryEnsembleMLC</global-report-name>
+      <report-frequency>1</report-frequency>
+    </listener>
+  </process>
+</experiment>

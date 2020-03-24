@@ -23,6 +23,7 @@ import g3pkemlc.utils.Utils;
 import mulan.classifier.MultiLabelLearnerBase;
 import mulan.classifier.transformation.LabelPowerset2;
 import mulan.data.MultiLabelInstances;
+import mulan.data.Statistics;
 import net.sf.jclec.algorithm.classic.SGE;
 import net.sf.jclec.fitness.SimpleValueFitness;
 import net.sf.jclec.selector.BettersSelector;
@@ -302,6 +303,8 @@ public class Alg extends SGE {
 			//Generate k-labelsets
 			KLabelsetGenerator klabelsetGen = new KLabelsetGenerator(minK, maxK, fullTrainData.getNumLabels(), nMLC);
 			klabelsetGen.setRandgen(randgen);
+//			klabelsetGen.setFreq(calculateWeights(Utils.calculateFrequencies(fullTrainData), 7));
+			klabelsetGen.setFreqBias(false);
 			klabelsets = klabelsetGen.generateKLabelsets();
 			klabelsetGen.printKLabelsets();
 			
@@ -510,4 +513,22 @@ public class Alg extends SGE {
 			System.exit(-1);
 		}		
 	}	
+	
+	private double[] calculateWeights(double []freq, int aMin) {
+		double [] w = new double[freq.length];
+		double sumFreq = Arrays.stream(freq).sum();
+		
+		int totalToShare = ((maxK+minK)/2) * populationSize;
+		int remaining = totalToShare - aMin*freq.length;
+		
+		for(int i=0; i<freq.length; i++) {
+			w[i] = aMin + (freq[i]/sumFreq)*remaining;
+			if(w[i] > populationSize) {
+				w[i] = populationSize;
+			}
+		}
+		
+		System.out.println("w: " + Arrays.toString(w));
+		return w;
+	}
 }

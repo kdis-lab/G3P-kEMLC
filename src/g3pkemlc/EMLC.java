@@ -159,7 +159,7 @@ public class EMLC extends MultiLabelMetaLearner {
 	 */
 	public Prediction reduce(String ind, Instance instance) {
 		//Match two or more leaves (numer or _number) between parenthesis
-		Pattern pattern = Pattern.compile("\\((_?\\d+ )+_?\\d+\\)");
+		Pattern pattern = Pattern.compile("\\([cv] (_?\\d+ )+_?\\d+\\)");
 		Matcher m = pattern.matcher(ind);
 		
 		//count to add predictions of combined nodes into the table
@@ -203,7 +203,21 @@ public class EMLC extends MultiLabelMetaLearner {
 		
 		//Split the nodes by space, so get the leaves
 		String [] pieces = nodes.split(" ");
-		for(String piece : pieces) {
+		
+		if(pieces[0].charAt(1) == 'v') {
+			useConfidences = false;
+		}
+		else if(pieces[0].charAt(1) == 'c'){
+			useConfidences = true;
+		}
+		else {
+			System.out.println("No acepted option.");
+			System.exit(-1);
+		}
+		
+//		for(String piece : pieces) {
+		for(int i=1; i<pieces.length; i++) {
+			String piece = pieces[i];
 			//Get index included in the piece and store in n
 			m = pattern.matcher(piece);
 			m.find();

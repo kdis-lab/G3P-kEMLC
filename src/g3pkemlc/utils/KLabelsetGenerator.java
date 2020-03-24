@@ -2,6 +2,7 @@ package g3pkemlc.utils;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Locale;
 
@@ -142,7 +143,14 @@ public class KLabelsetGenerator {
 		
 		int r;
 		do {
-			r = randgen.choose(0, nLabels);
+//			r = randgen.choose(0, nLabels);
+			if(!freqBias) {
+				r = chooseRandomLabel(null, nLabels);
+			}
+			else {
+				r = chooseRandomLabel(freq, nLabels);
+			}
+			
 			if(! klabelset.contains(r)) {
 				klabelset.add(r);
 			}
@@ -150,7 +158,35 @@ public class KLabelsetGenerator {
 		
 		Collections.sort(klabelset);
 		
+//		System.out.println(klabelset);
+		
 		return new KLabelset(k, this.nLabels, klabelset);
+	}
+	
+	/**
+	 * Select a random label. It will be an uniform selection if weights is set to null. Otherwise, it will be biased by the weights.
+	 * 
+	 * @param weights Weights to select a random label. If null, the selection is uniform.
+	 * @param nLabels Number of labels.
+	 * @return random chosen label.
+	 */
+	private int chooseRandomLabel(double [] weights, int nLabels) {
+		if(weights == null) {
+			return randgen.choose(0, nLabels);
+		}
+		else {
+			double r = randgen.uniform(0,  Arrays.stream(weights).sum());
+			for(int i=0; i<weights.length; i++) {
+				if(r <= weights[i]) {
+					return i;
+				}
+				else {
+					r -= weights[i];
+				}
+			}
+			System.out.println("Error");
+			return -1;
+		}
 	}
 	
 	/**
@@ -177,19 +213,14 @@ public class KLabelsetGenerator {
 		KLabelset nextKLabelset;
 		
 		//Generate random k-labelsets
-		if(! freqBias) {
-			do {
-				//Add a randomly generated k-labelset if it did not exist
-				nextKLabelset = randomKLabelset(this.minK, this.maxK);
-				
-				if(! klabelsets.contains(nextKLabelset)) {
-					klabelsets.add(nextKLabelset);
-				}
-			}while(klabelsets.size() < nLabelsets);
-		}
-		else {
+		do {
+			//Add a randomly generated k-labelset if it did not exist
+			nextKLabelset = randomKLabelset(this.minK, this.maxK);
 			
-		}
+			if(! klabelsets.contains(nextKLabelset)) {
+				klabelsets.add(nextKLabelset);
+			}
+		}while(klabelsets.size() < nLabelsets);
 		
 		return this.klabelsets;
 	}
