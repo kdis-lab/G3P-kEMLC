@@ -109,7 +109,7 @@ public class IndividualCreator {
 			child = "(v ";
 		}
 		else {
-			child = "(v ";
+			child = "(c ";
 		}
 
 		//Add n times the "C" and a space

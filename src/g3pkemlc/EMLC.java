@@ -233,7 +233,7 @@ public class EMLC extends MultiLabelMetaLearner {
 			}
 			else {
 				//Add to the current prediction, the prediction of the corresponding classifier
-				pred.addPrediction(dt.getOriginalLabelIndices(labelIndices, klabelsets.get(n).getKlabelset()), getPredictions(learners.get(String.valueOf(n)), instance));
+				pred.addPrediction(dt.getOriginalLabelIndices(labelIndices, klabelsets.get(n).getKlabelset()), getPredictions(learners.get(String.valueOf(n)), instance, useConfidences));
 			}
 		}
 
@@ -255,7 +255,7 @@ public class EMLC extends MultiLabelMetaLearner {
 	 * @param instance Instance to predict
 	 * @return Predictions
 	 */
-	protected double[][] getPredictions(MultiLabelLearner learner, Instance instance){
+	protected double[][] getPredictions(MultiLabelLearner learner, Instance instance, boolean useConfidences){
 		double[][] pred = new double[1][numLabels];
 		pred[0] = null;
 		
