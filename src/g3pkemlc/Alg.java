@@ -12,6 +12,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.commons.configuration.Configuration;
 
+import g3pkemlc.mutator.DoubleMutator;
 import g3pkemlc.mutator.Mutator;
 import g3pkemlc.recombinator.Crossover;
 import g3pkemlc.utils.DatasetTransformation;
@@ -158,7 +159,7 @@ public class Alg extends SGE {
 	/**
 	 * Last generation when an individual surpassed the specified fitness threshold of last best
 	 */
-	int lastBestInter;
+	int lastBestIter;
 	
 	/**
 	 * Maximum allowed number of iterations for the algorithm if it is stucked without improved more than the given fitness threshold
@@ -339,6 +340,10 @@ public class Alg extends SGE {
 		((Mutator)mutator.getDecorated()).setnChilds(maxChildren);
 		((Mutator)mutator.getDecorated()).setnMax(nMLC);
 		
+		if(configuration.getString("mutator[@type]").toLowerCase().contains("double")) {
+			((DoubleMutator)mutator.getDecorated()).setRatioCombinersMutation(configuration.getDouble("mutator[@ratio-mut-comb]"));
+		}
+		
 		((Crossover)recombinator.getDecorated()).setMaxTreeDepth(maxDepth);
 		
 		((Evaluator)evaluator).setFullTrainData(fullTrainData);
@@ -361,13 +366,13 @@ public class Alg extends SGE {
 		
 		if(bestFit > lastBestFitness*(1+improvementPercentageThreshold)) {
 			lastBestFitness = bestFit;
-			lastBestInter = generation;
+			lastBestIter = generation;
 		}
 		
 		//Get genotype of best individual
 		String bestGenotype = bestInd.getGenotype();
 		
-		if (generation >= maxOfGenerations || (generation - lastBestInter) >= maxStuckGenerations) {
+		if (generation >= maxOfGenerations || (generation - lastBestIter) >= maxStuckGenerations) {
 			System.out.println("Finished in generation " + generation);
 			finishAlgorithm = true;
 		}
@@ -513,22 +518,5 @@ public class Alg extends SGE {
 			System.exit(-1);
 		}		
 	}	
-	
-	private double[] calculateWeights(double []freq, int aMin) {
-		double [] w = new double[freq.length];
-		double sumFreq = Arrays.stream(freq).sum();
-		
-		int totalToShare = ((maxK+minK)/2) * populationSize;
-		int remaining = totalToShare - aMin*freq.length;
-		
-		for(int i=0; i<freq.length; i++) {
-			w[i] = aMin + (freq[i]/sumFreq)*remaining;
-			if(w[i] > populationSize) {
-				w[i] = populationSize;
-			}
-		}
-		
-		System.out.println("w: " + Arrays.toString(w));
-		return w;
-	}
+
 }

@@ -8,7 +8,7 @@
     <max-of-generations>200</max-of-generations>
 
     <recombinator rec-prob="0.7" />
-    <mutator mut-prob="0.2" />    
+    <mutator type="g3pkemlc.mutator.DoubleMutator" mut-prob="0.3" ratio-mut-comb="0.2" />
 
     <min-k>3</min-k>
     <max-k>7</max-k>
