@@ -159,7 +159,7 @@ public class EMLC extends MultiLabelMetaLearner {
 	 */
 	public Prediction reduce(String ind, Instance instance) {
 		//Match two or more leaves (numer or _number) between parenthesis
-		Pattern pattern = Pattern.compile("\\([cv] (_?\\d+ )+_?\\d+\\)");
+		Pattern pattern = Pattern.compile("\\(v\\.\\d+ (_?\\d+ )+_?\\d+\\)");
 		Matcher m = pattern.matcher(ind);
 		
 		//count to add predictions of combined nodes into the table
@@ -203,21 +203,15 @@ public class EMLC extends MultiLabelMetaLearner {
 		
 		//Split the nodes by space, so get the leaves
 		String [] pieces = nodes.split(" ");
+		String piece;
 		
-		if(pieces[0].charAt(1) == 'v') {
-			useConfidences = false;
-		}
-		else if(pieces[0].charAt(1) == 'c'){
-			useConfidences = true;
-		}
-		else {
-			System.out.println("No acepted option.");
-			System.exit(-1);
-		}
+		//The treshold is in the first piece
+		double threshold = Double.parseDouble(pieces[0].split("v")[1]);
 		
-//		for(String piece : pieces) {
+		//The rest of pieces are the indexes of classifiers
 		for(int i=1; i<pieces.length; i++) {
-			String piece = pieces[i];
+			piece = pieces[i];
+			
 			//Get index included in the piece and store in n
 			m = pattern.matcher(piece);
 			m.find();
@@ -233,7 +227,7 @@ public class EMLC extends MultiLabelMetaLearner {
 			}
 			else {
 				//Add to the current prediction, the prediction of the corresponding classifier
-				pred.addPrediction(dt.getOriginalLabelIndices(labelIndices, klabelsets.get(n).getKlabelset()), getPredictions(learners.get(String.valueOf(n)), instance, useConfidences));
+				pred.addPrediction(dt.getOriginalLabelIndices(labelIndices, klabelsets.get(n).getKlabelset()), getPredictions(learners.get(String.valueOf(n)), instance));
 			}
 		}
 
@@ -242,7 +236,7 @@ public class EMLC extends MultiLabelMetaLearner {
 			pred.divide();
 		}
 		else {
-			pred.divideAndThresholdPrediction(0.5);
+			pred.divideAndThresholdPrediction(threshold);
 		}
 		
 		return pred;
@@ -255,7 +249,7 @@ public class EMLC extends MultiLabelMetaLearner {
 	 * @param instance Instance to predict
 	 * @return Predictions
 	 */
-	protected double[][] getPredictions(MultiLabelLearner learner, Instance instance, boolean useConfidences){
+	protected double[][] getPredictions(MultiLabelLearner learner, Instance instance){
 		double[][] pred = new double[1][numLabels];
 		pred[0] = null;
 		

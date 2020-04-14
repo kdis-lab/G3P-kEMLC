@@ -8,21 +8,18 @@
     <max-of-generations>200</max-of-generations>
 
     <recombinator rec-prob="0.7" />
-    <mutator type="g3pkemlc.mutator.DoubleMutator" mut-prob="0.3" ratio-mut-comb="0.2" />
+    <mutator mut-prob="0.2" />    
 
     <min-k>3</min-k>
     <max-k>7</max-k>
     <max-depth>3</max-depth>
+    <min-children>3</min-children>
     <max-children>7</max-children>
-    <different-classifiers>56</different-classifiers>
+    <v>20</v>
     <sampling-ratio>0.75</sampling-ratio>
 
     <improvement-percentage>0.001</improvement-percentage>
     <max-stuck-generations>10</max-stuck-generations>
-
-    <use-confidences>false</use-confidences>
-  
-    <beta>0.5</beta>
 
     <dataset multi="true">
       <dataset>

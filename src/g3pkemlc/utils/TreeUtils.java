@@ -27,7 +27,7 @@ public class TreeUtils {
 	 */
 	public static Prediction reduce(String ind, String key, Hashtable<String, Prediction> tablePredictions, int nInstances, boolean useConfidences) {
 		//Match two or more leaves (numer or _number) between parenthesis
-		Pattern pattern = Pattern.compile("\\([cv] (_?\\d+ )+_?\\d+\\)");
+		Pattern pattern = Pattern.compile("\\(v\\.\\d+ (_?\\d+ )+_?\\d+\\)");
 		Matcher m = pattern.matcher(ind);
 		
 		//count to add predictions of combined nodes into the table
@@ -75,21 +75,14 @@ public class TreeUtils {
 		
 		//Split the nodes by space, so get the leaves
 		String [] pieces = nodes.split(" ");
+		String piece;
 		
-		if(pieces[0].charAt(1) == 'v') {
-			useConfidences = false;
-		}
-		else if(pieces[0].charAt(1) == 'c'){
-			useConfidences = true;
-		}
-		else {
-			System.out.println("Non acepted option.");
-			System.exit(-1);
-		}
+		//First piece contains the threshold
+		double threshold = Double.parseDouble(pieces[0].split("v")[1]);
 		
-//		for(String piece : pieces) {
+		//Rest of pieces contain the indexes of classifiers
 		for(int i=1; i<pieces.length; i++) {
-			String piece = pieces[i];
+			piece = pieces[i];
 			//Get index included in the piece and store in n
 			m = pattern.matcher(piece);
 			m.find();
@@ -114,7 +107,7 @@ public class TreeUtils {
 			pred.divide();
 		}
 		else {
-			pred.divideAndThresholdPrediction(0.5);
+			pred.divideAndThresholdPrediction(threshold);
 		}
 
 		//Return combined prediction of corresponding nodes

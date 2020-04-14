@@ -13,7 +13,6 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.apache.commons.configuration.Configuration;
 
 import g3pkemlc.mutator.DoubleMutator;
-import g3pkemlc.mutator.Mutator;
 import g3pkemlc.recombinator.Crossover;
 import g3pkemlc.utils.DatasetTransformation;
 import g3pkemlc.utils.KLabelset;
@@ -24,7 +23,6 @@ import g3pkemlc.utils.Utils;
 import mulan.classifier.MultiLabelLearnerBase;
 import mulan.classifier.transformation.LabelPowerset2;
 import mulan.data.MultiLabelInstances;
-import mulan.data.Statistics;
 import net.sf.jclec.algorithm.classic.SGE;
 import net.sf.jclec.fitness.SimpleValueFitness;
 import net.sf.jclec.selector.BettersSelector;
@@ -34,7 +32,7 @@ import net.sf.jclec.util.random.IRandGen;
 import weka.classifiers.trees.J48;
 
 /**
- * Class implementing the evolutionary algorithm.
+ * Class implementing the main algorithm for G3P-kEMLC.
  * 
  * @author Jose M. Moyano
  *
@@ -52,7 +50,12 @@ public class Alg extends SGE {
 	BettersSelector bselector = new BettersSelector(this);
 	
 	/**
-	 * Max number of children at each node
+	 * Minimum number of children at each node
+	 */
+	int minChildren;
+	
+	/**
+	 * Maximum number of children at each node
 	 */
 	int maxChildren;
 	
@@ -92,9 +95,20 @@ public class Alg extends SGE {
 	MultiLabelInstances testData;
 	
 	/**
+	 * Number of labels in the dataset
+	 */
+	int numLabels;
+	
+	/**
 	 * Number of different MLC
 	 */
-	int nMLC;
+	int nMLC = -1;
+	
+	/**
+	 * Number of expected votes (in average) for each label in initial population.
+	 * It is considered just if nMLC is not set.
+	 */
+	double expectedInitialVotesPerLabel = -1;
 	
 	/**
 	 * Utils
@@ -147,11 +161,6 @@ public class Alg extends SGE {
 	double beta;
 	
 	/**
-	 * Frequency of reports over test data
-	 */
-	double testReportFrequency;
-	
-	/**
 	 * Last fitness of best individual that surpassed the specified threshold
 	 */
 	double lastBestFitness;
@@ -159,7 +168,7 @@ public class Alg extends SGE {
 	/**
 	 * Last generation when an individual surpassed the specified fitness threshold of last best
 	 */
-	int lastBestIter;
+	int lastBestInter;
 	
 	/**
 	 * Maximum allowed number of iterations for the algorithm if it is stucked without improved more than the given fitness threshold
@@ -175,6 +184,11 @@ public class Alg extends SGE {
 	 * Indicates when the algorithm is finished (due to max of generations or stuck algorithm)
 	 */
 	boolean finishAlgorithm = false;
+	
+	/**
+	 * Standard deviation parameter for gaussian to calculate thresholds
+	 */
+	double stdvGaussianThreshold;
 	
 	/**
 	 * Getter for test data
@@ -195,6 +209,15 @@ public class Alg extends SGE {
 	}
 	
 	/**
+	 * Get the number of labels in the dataset
+	 * 
+	 * @return Number of labels
+	 */
+	public int getNumLabels() {
+		return numLabels;
+	}
+	
+	/**
 	 * Getter for the ensemble
 	 * 
 	 * @return Ensemble
@@ -204,7 +227,7 @@ public class Alg extends SGE {
 	}
 	
 	/**
-	 * Configure some default aspects and parameters of EME to make the configuration easier
+	 * Configure some default aspects and parameters of G3P-kEMLC to make the configuration easier
 	 * 
 	 * @param configuration Configuration
 	 */
@@ -241,7 +264,13 @@ public class Alg extends SGE {
 			configuration.addProperty("recombinator[@type]", "g3pkemlc.recombinator.Crossover");
 		}
 		if(! configuration.containsKey("mutator[@type]")) {
-			configuration.addProperty("mutator[@type]", "g3pkemlc.mutator.Mutator");
+			configuration.addProperty("mutator[@type]", "g3pkemlc.mutator.DoubleMutator");
+		}
+		//Set ratio of thresholds to mutate for double mutator if not specified
+		if(configuration.getString("mutator[@type]").contains("DoubleMutator")) {
+			if(! configuration.containsKey("mutator[@ratio-threshods-mutate]")) {
+				configuration.addProperty("mutator[@ratio-threshods-mutate]", 0.0);
+			}
 		}
 		
 		//Use confidences (only if not provided)
@@ -253,17 +282,35 @@ public class Alg extends SGE {
 		if(! configuration.containsKey("listener[@type]")) {
 			configuration.addProperty("listener[@type]", "g3pkemlc.Listener");
 		}
+		
+		//Standard deviation for gaussian (if not provided)
+		if(! configuration.containsKey("stdv-gaussian-threshold")) {
+			configuration.addProperty("stdv-gaussian-threshold", 0.15);
+		}
+		
+		//Beta value for fitness function (if not provided)
+		if(! configuration.containsKey("beta")) {
+			configuration.addProperty("beta", 0.5);
+		}
+		
+		//Number of expected votes per label in the initial population if neither the expected votes nor the number of classifiers to build is provided
+		if(!configuration.containsKey("different-classifiers") && !configuration.containsKey("v")) {
+			configuration.addProperty("v", 20);
+		}
 	}
 	
 	@Override
 	public void configure(Configuration configuration) {
+		//Set default configurations
 		configureDefaults(configuration);
+		
+		//Call super method
 		super.configure(configuration);
 		
+		//Random numbers generator
 		seed = configuration.getInt("rand-gen-factory[@seed]");
 		randgen = randGenFactory.createRandGen();
-		utils = new Utils(randgen);
-		
+		utils = new Utils(randgen); //Set randgen to Utils just once (it is a static property)
 		
 		//Initialize table for predictions
 		tablePredictions = new Hashtable<String, Prediction>();
@@ -273,28 +320,48 @@ public class Alg extends SGE {
 		String datasetTestFileName = configuration.getString("dataset.test-dataset");
 		String datasetXMLFileName = configuration.getString("dataset.xml");
 		
-		sampleRatio = configuration.getDouble("sampling-ratio");
-		
-		minK = configuration.getInt("min-k");
-		maxK = configuration.getInt("max-k");
-		nMLC = configuration.getInt("different-classifiers");
-		maxChildren = configuration.getInt("max-children");
-		maxDepth = configuration.getInt("max-depth");
-		useConfidences = configuration.getBoolean("use-confidences");
-		beta = configuration.getDouble("beta");
-		
-		testReportFrequency = configuration.getInt("listener.test-report-frequency", maxOfGenerations);
-		
-		improvementPercentageThreshold = configuration.getDouble("improvement-percentage");
-		maxStuckGenerations = configuration.getInt("max-stuck-generations");
-		
 		fullTrainData = null;
 		currentTrainData = null;
 		testData = null;
 		try {
 			fullTrainData = new MultiLabelInstances(datasetTrainFileName, datasetXMLFileName);
 			testData = new MultiLabelInstances(datasetTestFileName, datasetXMLFileName);
-
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+		numLabels = fullTrainData.getNumLabels();
+		
+		//Get some properties
+		sampleRatio = configuration.getDouble("sampling-ratio");
+		
+		minK = configuration.getInt("min-k");
+		maxK = configuration.getInt("max-k");
+				
+		minChildren = configuration.getInt("min-children");
+		maxChildren = configuration.getInt("max-children");
+		maxDepth = configuration.getInt("max-depth");
+		stdvGaussianThreshold = configuration.getDouble("stdv-gaussian-threshold");
+		useConfidences = configuration.getBoolean("use-confidences");
+		beta = configuration.getDouble("beta");
+		
+		improvementPercentageThreshold = configuration.getDouble("improvement-percentage");
+		maxStuckGenerations = configuration.getInt("max-stuck-generations");
+		
+		//If the number of classifiers is specified, use it
+		//Otherwise, use the expected number of votes
+		if(configuration.containsKey("different-classifiers")) {
+			nMLC = configuration.getInt("different-classifiers");
+		}
+		else {
+			expectedInitialVotesPerLabel = configuration.getInt("v");
+			nMLC = (int)Math.round((expectedInitialVotesPerLabel * numLabels) / ((minK + maxK) / 2));
+			System.out.println("nMLC: " + nMLC);
+		}
+		
+		//Build classifiers in parallel, get predictions, and store
+		try {
 			//Create folder for classifiers if it does not exist
 			File f = new File("mlc/");
 			if (!f.exists()) {
@@ -302,10 +369,8 @@ public class Alg extends SGE {
 			}
 			
 			//Generate k-labelsets
-			KLabelsetGenerator klabelsetGen = new KLabelsetGenerator(minK, maxK, fullTrainData.getNumLabels(), nMLC);
+			KLabelsetGenerator klabelsetGen = new KLabelsetGenerator(minK, maxK, numLabels, nMLC);
 			klabelsetGen.setRandgen(randgen);
-//			klabelsetGen.setFreq(calculateWeights(Utils.calculateFrequencies(fullTrainData), 7));
-			klabelsetGen.setFreqBias(false);
 			klabelsets = klabelsetGen.generateKLabelsets();
 			klabelsetGen.printKLabelsets();
 			
@@ -332,17 +397,17 @@ public class Alg extends SGE {
 		}
 		
 		//Set settings of provider, genetic operators and evaluator
+		((StringTreeCreator)provider).setMinChildren(minChildren);
 		((StringTreeCreator)provider).setMaxChildren(maxChildren);
 		((StringTreeCreator)provider).setMaxDepth(maxDepth);
 		((StringTreeCreator)provider).setnMax(nMLC);
 		
-		((Mutator)mutator.getDecorated()).setMaxTreeDepth(maxDepth);
-		((Mutator)mutator.getDecorated()).setnChilds(maxChildren);
-		((Mutator)mutator.getDecorated()).setnMax(nMLC);
-		
-		if(configuration.getString("mutator[@type]").toLowerCase().contains("double")) {
-			((DoubleMutator)mutator.getDecorated()).setRatioCombinersMutation(configuration.getDouble("mutator[@ratio-mut-comb]"));
-		}
+		((DoubleMutator)mutator.getDecorated()).setMaxTreeDepth(maxDepth);
+		((DoubleMutator)mutator.getDecorated()).setMinChildren(minChildren);
+		((DoubleMutator)mutator.getDecorated()).setMaxChildren(maxChildren);
+		((DoubleMutator)mutator.getDecorated()).setnMax(nMLC);
+		((DoubleMutator)mutator.getDecorated()).setRatioTresholdsToMutate(configuration.getDouble("mutator[@ratio-threshods-mutate]"));
+		((DoubleMutator)mutator.getDecorated()).setStdvGaussianThreshold(stdvGaussianThreshold);
 		
 		((Crossover)recombinator.getDecorated()).setMaxTreeDepth(maxDepth);
 		
@@ -364,20 +429,20 @@ public class Alg extends SGE {
 		StringTreeIndividual bestInd = (StringTreeIndividual)bselector.select(bset, 1).get(0);
 		double bestFit = ((SimpleValueFitness)bestInd.getFitness()).getValue();
 		
+		//If this generation the best has improved
 		if(bestFit > lastBestFitness*(1+improvementPercentageThreshold)) {
 			lastBestFitness = bestFit;
-			lastBestIter = generation;
+			lastBestInter = generation;
 		}
 		
 		//Get genotype of best individual
 		String bestGenotype = bestInd.getGenotype();
 		
-		if (generation >= maxOfGenerations || (generation - lastBestIter) >= maxStuckGenerations) {
+		//Check if the stop criterion meets
+		if (generation >= maxOfGenerations || (generation - lastBestInter) >= maxStuckGenerations) {
 			System.out.println("Finished in generation " + generation);
 			finishAlgorithm = true;
-		}
-		
-		if(generation%testReportFrequency == 0 || generation >= maxOfGenerations || finishAlgorithm) {
+
 			//Get base learner
 			learner = new LabelPowerset2(new J48());
 			((LabelPowerset2)learner).setSeed(seed);
@@ -391,11 +456,9 @@ public class Alg extends SGE {
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-		}
-		
-		if (finishAlgorithm) {
+			
 			//Print votes per label
-			System.out.println("Votes per label: " + Arrays.toString(TreeUtils.votesPerLabel(bestGenotype, klabelsets, fullTrainData.getNumLabels())));
+			System.out.println("Votes per label: " + Arrays.toString(TreeUtils.votesPerLabel(bestGenotype, klabelsets, numLabels)));
 			
 			//Print the leaves; i.e., different classifiers used in the ensemble
 			//System.out.println(utils.getLeaves(bestGenotype));
@@ -459,6 +522,8 @@ public class Alg extends SGE {
 		int seed = c;
 		
 		try {
+			//Create randgen for this classifier
+			//	so experiments are reproducible although they are built in parallel
 			randgen = new RanecuFactory2().createRandGen(seed, seed*2);
 			
 			//Sample c-th data
@@ -518,5 +583,4 @@ public class Alg extends SGE {
 			System.exit(-1);
 		}		
 	}	
-
 }

@@ -4,7 +4,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import net.sf.jclec.ISpecies;
-import net.sf.jclec.binarray.BinArrayIndividual;
 import net.sf.jclec.binarray.BinArrayIndividualSpecies;
 
 /**

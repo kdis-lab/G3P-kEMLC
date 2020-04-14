@@ -283,7 +283,7 @@ public class Listener implements IAlgorithmListener, IConfigure
 			IIndividual best = IndividualStatistics.bestIndividual(inhabitants, comparator);
 			String bestGen = ((StringTreeIndividual)best).getGenotype();
 			bestTreeWriter = new BufferedWriter(new FileWriter(bestTreeFilename, true));
-			int [] votesPerLabel = TreeUtils.votesPerLabel(bestGen, ((Alg)event.getAlgorithm()).klabelsets, ((Alg)event.getAlgorithm()).fullTrainData.getNumLabels());
+			int [] votesPerLabel = TreeUtils.votesPerLabel(bestGen, ((Alg)event.getAlgorithm()).klabelsets, ((Alg)event.getAlgorithm()).getNumLabels());
 			double avgVotes = TreeUtils.avgVotes(votesPerLabel);
 			bestTreeWriter.write(bestGen + " " + Arrays.toString(votesPerLabel) + "; " + avgVotes + "; " + utils.getLeaves(bestGen).size() + ";\n");
 			bestTreeWriter.close();

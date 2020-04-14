@@ -1,11 +1,6 @@
 package net.sf.jclec.stringtree;
 
 import net.sf.jclec.IConfigure;
-import net.sf.jclec.binarray.BinArrayIndividual;
-import net.sf.jclec.binarray.BinArrayIndividualSpecies;
-import net.sf.jclec.binarray.BinArraySpecies;
-
-import java.util.StringTokenizer;
 
 import org.apache.commons.lang.builder.EqualsBuilder;
 

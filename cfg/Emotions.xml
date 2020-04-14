@@ -1,33 +1,35 @@
 <experiment>
   <process algorithm-type="g3pkemlc.Alg">
     <rand-gen-factory multi="true">
-      <rand-gen-factory seed="20"/>
+      <rand-gen-factory seed="10"/>
     </rand-gen-factory>
 
     <population-size>50</population-size>
     <max-of-generations>200</max-of-generations>
 
     <recombinator rec-prob="0.7" />
-    <mutator type="g3pkemlc.mutator.DoubleMutator" mut-prob="0.2" ratio-mut-comb="0.2" />
+    <mutator mut-prob="0.3"/>    
 
-    <min-k>2</min-k>
-    <max-k>4</max-k>
+    <min-k>3</min-k>
+    <max-k>3</max-k>
     <max-depth>3</max-depth>
+    <min-children>3</min-children>
     <max-children>7</max-children>
-    <different-classifiers>20</different-classifiers>
     <sampling-ratio>0.75</sampling-ratio>
+    <different-classifiers>20</different-classifiers>
 
     <improvement-percentage>0.001</improvement-percentage>
-    <max-stuck-generations>10</max-stuck-generations>
-
-    <use-confidences>false</use-confidences>
-  
-    <beta>0.5</beta>
+    <max-stuck-generations>20</max-stuck-generations>
 
     <dataset multi="true">
       <dataset>
         <train-dataset>data/Emotions/Emotions-train1.arff</train-dataset>
         <test-dataset>data/Emotions/Emotions-test1.arff</test-dataset>
+        <xml>data/Emotions/Emotions.xml</xml>
+      </dataset>
+      <dataset>
+        <train-dataset>data/Emotions/Emotions-train2.arff</train-dataset>
+        <test-dataset>data/Emotions/Emotions-test2.arff</test-dataset>
         <xml>data/Emotions/Emotions.xml</xml>
       </dataset>
     </dataset>	

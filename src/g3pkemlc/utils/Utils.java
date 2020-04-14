@@ -6,7 +6,6 @@ import java.io.FileOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -43,7 +42,6 @@ import mulan.evaluation.measure.OneError;
 import mulan.evaluation.measure.RankingLoss;
 import mulan.evaluation.measure.SubsetAccuracy;
 import net.sf.jclec.util.random.IRandGen;
-import weka.core.Instance;
 
 /**
  * Class implementing several utilities to deal with G3P-kEMLC individuals
@@ -93,7 +91,7 @@ public class Utils {
 	 * @return Number of leaves
 	 */
 	public int countLeaves(String ind) {
-		Pattern p = Pattern.compile("\\d+"); // "\d" is for digits in regex
+		Pattern p = Pattern.compile("( |\\(|_)\\d+"); // "\d" is for digits in regex; just consider those numbers preceded by ' ', '(', or '_' ; so it is not considered here the threshold
 		Matcher m = p.matcher(ind);
 		int count = 0;
 		
@@ -112,7 +110,7 @@ public class Utils {
 	 * @return ArrayList of Integers with leaves without repetition
 	 */
 	public ArrayList<Integer> getLeaves(String ind) {
-		Pattern p = Pattern.compile("\\d+"); // "\d" is for digits in regex
+		Pattern p = Pattern.compile("( |\\(|_)\\d+"); // "\d" is for digits in regex
 		Matcher m = p.matcher(ind);
 		
 		Integer leaf;
@@ -120,7 +118,7 @@ public class Utils {
 		
 		//Add to the list each different number (leaf) found
 		while(m.find()){
-			leaf = Integer.parseInt(m.group());
+			leaf = Integer.parseInt(m.group().replaceAll("( |\\(|_)", ""));
 			if(!leaves.contains(leaf)) {
 				leaves.add(leaf);
 			}
@@ -142,7 +140,7 @@ public class Utils {
 		int nLeaves = countLeaves(ind);
 		int r = randgen.choose(0, nLeaves);
 		
-		Pattern p = Pattern.compile("\\d+"); // "\d" is for digits in regex
+		Pattern p = Pattern.compile("( |\\(|_)\\d+"); // "\d" is for digits in regex
 		Matcher m = p.matcher(ind);
 		
 		//Match leaves until counter reaches the randomly generated r
@@ -154,7 +152,7 @@ public class Utils {
 		
 		//Indexes of start and end of the leaf in the String
 		int[] leaf = new int[2];
-		leaf[0] = m.start();
+		leaf[0] = m.start()+1; //ignore the space, parenthesis, or underscore
 		leaf[1] = m.end();
 
 		return leaf;
@@ -514,43 +512,21 @@ public class Utils {
 	}
 	
 	/**
-	 * Calculates the appearances of each label of the dataset
+	 * Obtain a randomly generated threshold.
+	 * It uses a gaussian function (centered in 0.5), and ensures it is in the range (0, 1)
 	 * 
-	 * @param mlData Multi-label dataset
-	 * 
-	 * @return Array with the number of appearances of each label
+	 * @param stdv Standard deviation for gaussian
+	 * @return Threshold calculated by gaussian method
 	 */
-	public static int [] calculateAppearances(MultiLabelInstances mlData){
-		int nLabels = mlData.getNumLabels();
-		int [] appearances = new int[nLabels];
-		
-		int [] labelIndices = mlData.getLabelIndices();
-		
-		for(Instance instance : mlData.getDataSet()){
-			for(int l=0; l<nLabels; l++){
-				appearances[l] += instance.value(labelIndices[l]);
-			}
+	public double randomThreshold(double stdv) {
+		double t = randgen.gaussian(stdv) + 0.5;
+		if(t < 0.01) {
+			t = 0.01;
+		}
+		else if(t> 0.99) {
+			t = 0.99;
 		}
 		
-		return appearances;
-	}
-	
-	/**
-	 * Calculates the frequency of each label
-	 * 
-	 * @param mlData Multi-label dataset
-	 * 
-	 * @return Array with frequencies of each label
-	 */
-	public static double [] calculateFrequencies(MultiLabelInstances mlData) {
-		int [] apparances = calculateAppearances(mlData);
-		
-		double [] weights = new double[apparances.length];
-		
-		for(int i=0; i<apparances.length; i++) {
-			weights[i] = (apparances[i]*1.0) / mlData.getNumInstances();
-		}
-		
-		return weights;
+		return t;
 	}
 }

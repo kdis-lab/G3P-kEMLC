@@ -36,19 +36,29 @@ public class StringTreeCreator extends AbstractCreator
 	protected transient String schema;
 	
 	/**
+	 * Min number of children at each node
+	 */
+	int minChildren;
+	
+	/**
 	 * Max number of children at each node
 	 */
-	protected int maxChildren;
+	int maxChildren;
 	
 	/**
 	 * Max depth of the tree
 	 */
-	protected int maxDepth;
+	int maxDepth;
 	
 	/**
 	 * Max value for the leaves
 	 */
-	protected int nMax;
+	int nMax;
+	
+	/**
+	 * Standard deviation parameter for gaussian to calculate thresholds
+	 */
+	double stdvGaussianThreshold;
 	
 
 	/////////////////////////////////////////////////////////////////
@@ -64,6 +74,10 @@ public class StringTreeCreator extends AbstractCreator
 	// ----------------------------------------------- Public methods
 	/////////////////////////////////////////////////////////////////
 	
+	public void setMinChildren(int minChildren) {
+		this.minChildren = minChildren;
+	}
+	
 	public void setMaxChildren(int maxChildren) {
 		this.maxChildren = maxChildren;
 	}
@@ -76,6 +90,9 @@ public class StringTreeCreator extends AbstractCreator
 		this.nMax = nMax;
 	}
 	
+	public void setStdvGaussianThreshold(double stdvGaussianThreshold) {
+		this.stdvGaussianThreshold = stdvGaussianThreshold;
+	}
 	
 	// java.lang.Object methods
 	
@@ -150,9 +167,9 @@ public class StringTreeCreator extends AbstractCreator
 	/**
 	 * Create a byte [] genotype, filling it randomly
 	 */
-	private String createGenotype()
+	private final String createGenotype()
 	{
 		IndividualCreator creator = new IndividualCreator(randgen);
-		return creator.create(nMax, maxDepth, maxChildren);
+		return creator.create(nMax, maxDepth, minChildren, maxChildren, stdvGaussianThreshold);
 	}
 }

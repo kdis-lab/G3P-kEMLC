@@ -5,7 +5,6 @@ import java.util.List;
 import g3pkemlc.EMLC;
 import mulan.classifier.MultiLabelLearner;
 import mulan.data.MultiLabelInstances;
-import mulan.evaluation.Evaluation;
 import mulan.evaluation.Evaluator;
 import mulan.evaluation.measure.Measure;
 
