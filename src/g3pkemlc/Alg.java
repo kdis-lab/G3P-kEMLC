@@ -280,7 +280,7 @@ public class Alg extends SGE {
 		//Set ratio of thresholds to mutate for double mutator if not specified
 		if(configuration.getString("mutator[@type]").contains("DoubleMutator")) {
 			if(! configuration.containsKey("mutator[@ratio-threshods-mutate]")) {
-				configuration.addProperty("mutator[@ratio-threshods-mutate]", 0.0);
+				configuration.addProperty("mutator[@ratio-threshods-mutate]", 0.1);
 			}
 		}
 		
@@ -418,6 +418,7 @@ public class Alg extends SGE {
 		((StringTreeCreator)provider).setMaxChildren(maxChildren);
 		((StringTreeCreator)provider).setMaxDepth(maxDepth);
 		((StringTreeCreator)provider).setnMax(nMLC);
+		((StringTreeCreator)provider).setStdvGaussianThreshold(stdvGaussianThreshold);
 		
 		((DoubleMutator)mutator.getDecorated()).setMaxTreeDepth(maxDepth);
 		((DoubleMutator)mutator.getDecorated()).setMinChildren(minChildren);
