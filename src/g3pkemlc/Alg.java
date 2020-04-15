@@ -28,6 +28,7 @@ import net.sf.jclec.fitness.SimpleValueFitness;
 import net.sf.jclec.selector.BettersSelector;
 import net.sf.jclec.stringtree.StringTreeCreator;
 import net.sf.jclec.stringtree.StringTreeIndividual;
+import net.sf.jclec.util.IndividualStatistics;
 import net.sf.jclec.util.random.IRandGen;
 import weka.classifiers.trees.J48;
 
@@ -191,6 +192,16 @@ public class Alg extends SGE {
 	double stdvGaussianThreshold;
 	
 	/**
+	 * Indicates wether the probabilities of crossover and mutation are automatically adapted or not
+	 */
+	boolean adaptiveOperatorsProbabilities;
+	
+	/**
+	 * Average fitness of the population in the last generation
+	 */
+	double lastAvgFitness = 0.0;
+	
+	/**
 	 * Getter for test data
 	 * 
 	 * @return Test data
@@ -273,6 +284,11 @@ public class Alg extends SGE {
 			}
 		}
 		
+		//Adaptive probabilities for operators (only if not provided)
+		if(! configuration.containsKey("adaptive-operators-probabilities")) {
+			configuration.addProperty("adaptive-operators-probabilities", "true");
+		}
+		
 		//Use confidences (only if not provided)
 		if(! configuration.containsKey("use-confidences")) {
 			configuration.addProperty("use-confidences", "false");
@@ -348,6 +364,7 @@ public class Alg extends SGE {
 		
 		improvementPercentageThreshold = configuration.getDouble("improvement-percentage");
 		maxStuckGenerations = configuration.getInt("max-stuck-generations");
+		adaptiveOperatorsProbabilities = configuration.getBoolean("adaptive-operators-probabilities");
 		
 		//If the number of classifiers is specified, use it
 		//Otherwise, use the expected number of votes
@@ -425,7 +442,7 @@ public class Alg extends SGE {
 	
 	@Override
 	protected void doControl()
-	{		
+	{	
 		StringTreeIndividual bestInd = (StringTreeIndividual)bselector.select(bset, 1).get(0);
 		double bestFit = ((SimpleValueFitness)bestInd.getFitness()).getValue();
 		
@@ -433,6 +450,26 @@ public class Alg extends SGE {
 		if(bestFit > lastBestFitness*(1+improvementPercentageThreshold)) {
 			lastBestFitness = bestFit;
 			lastBestInter = generation;
+		}
+		
+		if(adaptiveOperatorsProbabilities) {
+			//If average fitness improved this generation, increase crossover probability
+			double currentAvgFitness = IndividualStatistics.averageFitness(bset);
+			if(currentAvgFitness > lastAvgFitness) {
+				if(mutator.getMutProb() > 0.02 && recombinator.getRecProb() < 0.98) {
+					mutator.setMutProb(mutator.getMutProb() - 0.02);
+					recombinator.setRecProb(recombinator.getRecProb() + 0.02);
+				}
+			}
+			//If average fitness did not improved this generation, increase mutator probability
+			else {
+				if(mutator.getMutProb() < 0.98 && recombinator.getRecProb() > 0.02) {
+					mutator.setMutProb(mutator.getMutProb() + 0.02);
+					recombinator.setRecProb(recombinator.getRecProb() - 0.02);
+				}
+			}
+			
+			lastAvgFitness = currentAvgFitness;
 		}
 		
 		//Get genotype of best individual
