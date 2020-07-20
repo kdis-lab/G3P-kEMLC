@@ -20,16 +20,16 @@ The configuration file is a xml file including the parameters of the G3P algorit
     <rand-gen-factory seed="10"/>
      
     <population-size>50</population-size>
-    <max-of-generations>100</max-of-generations>    
+    <max-of-generations>200</max-of-generations>    
      
-    <recombinator rec-prob="0.7" />
-    <mutator mut-prob="0.2" />
+    <recombinator rec-prob="0.5" />
+    <mutator mut-prob="0.5" />
      
     <min-k>3</min-k>
     <max-k>7</max-k>
     <max-depth>3</max-depth>
     <max-children>7</max-children>
-    <different-classifiers>56</different-classifiers>
+    <v>10</v>
     <sampling-ratio>0.75</sampling-ratio>
   
     <beta>0.5</beta>
@@ -67,7 +67,7 @@ The configuration file is a xml file including the parameters of the G3P algorit
 * The size of the _k_-labelsets is determined with the ```<min-k>``` and ```<max-k>``` tags. If fixed _k_ is desired for all classifiers, both values are the same.
 * The maximum allowed depth of the tree is determined with the ```<max-depth>``` tag.
 * The maximum number of children of each node of the tree is determined with the ```<max-children>``` tag.
-* The number of classifier in the pool is determined with the ```<different-classifiers>``` tag.
+* The number of classifier in the pool is determined with the ```<v>``` tag. It determines the average number of votes per label that are expected in the pool of classifiers, and depending on the value of k, it automatically calculates the number of classifiers to build.
 * The ratio of instances to sampe (whithout replacement) at each base classifier is determined with the ```<sampling-ratio>``` tag.
 * The value of beta to combine the terms of the fitness function is determined with the ```<beta>``` tag.
 * With the ```<dataset>``` tag, the datasets used for training (for the G3P algorithm) and testing (for testing the final ensemble obtained by G3P-kEMLC) are determined with the tags ```<train-dataset>``` and ```<test-dataset>``` respectively. The ```<xml>``` tag indicates the xml file of the dataset (Mulan format, [see more](http://www.uco.es/kdis/mllresources/#MulanFormat)).  Several datasets, or several partitions of the same dataset may be used, including the tag ```<dataset multi="true">```, and the different datasets inside, as follows:
