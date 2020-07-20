@@ -2,24 +2,25 @@
   <process algorithm-type="g3pkemlc.Alg">
     <rand-gen-factory multi="true">
       <rand-gen-factory seed="10"/>
+      <rand-gen-factory seed="20"/>
+      <rand-gen-factory seed="30"/>
     </rand-gen-factory>
 
     <population-size>50</population-size>
     <max-of-generations>200</max-of-generations>
 
-    <recombinator rec-prob="0.7" />
-    <mutator mut-prob="0.3"/>    
+    <recombinator rec-prob="0.5" />
+    <mutator mut-prob="0.5" />    
 
     <min-k>3</min-k>
     <max-k>3</max-k>
     <max-depth>3</max-depth>
-    <min-children>3</min-children>
     <max-children>7</max-children>
+    <v>10</v>
     <sampling-ratio>0.75</sampling-ratio>
-    <different-classifiers>20</different-classifiers>
-
-    <improvement-percentage>0.001</improvement-percentage>
-    <max-stuck-generations>20</max-stuck-generations>
+    <phi-based-individuals>true</phi-based-individuals>
+  
+    <beta>0.5</beta>
 
     <dataset multi="true">
       <dataset>
@@ -32,12 +33,17 @@
         <test-dataset>data/Emotions/Emotions-test2.arff</test-dataset>
         <xml>data/Emotions/Emotions.xml</xml>
       </dataset>
+      <dataset>
+        <train-dataset>data/Emotions/Emotions-train3.arff</train-dataset>
+        <test-dataset>data/Emotions/Emotions-test3.arff</test-dataset>
+        <xml>data/Emotions/Emotions.xml</xml>
+      </dataset>
     </dataset>	
 
     <listener type="g3pkemlc.Listener">
       <report-dir-name>reports/GP-EMLC</report-dir-name>
       <global-report-name>summaryEnsembleMLC</global-report-name>
-      <report-frequency>1</report-frequency>
+      <report-frequency>1</report-frequency>  
     </listener>
   </process>
 </experiment>
