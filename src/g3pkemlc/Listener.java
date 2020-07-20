@@ -72,38 +72,17 @@ public class Listener implements IAlgorithmListener, IConfigure
 	
 	private boolean saveCompletePopulation;
 	
-	/** Report frequency for testing */
+	Utils utils = new Utils();		
+	String bestLeavesFilename = "reports/bestLeaves.csv";
+	String bestTreeFilename = "reports/bestTree.csv";
+	String bestFilename = "reports/bestFitness.csv";
+	String medianFilename = "reports/medianFitness.csv";
+	String avgFilename = "reports/avgFitness.csv";
+	String worstFilename = "reports/worstFitness.csv";
+	String pcFilename = "reports/crossProbability.csv";
+	String pmFilename = "reports/mutProbability.csv";
 	
-	private int testReportFrequency;
-	
-	Utils utils = new Utils();
-	
-	/** File to store the number of leaves of the best individual at each generation */
-    String bestLeavesFilename = "reports/bestLeaves.csv";
-    
-    /** File to store the maximum depth of best individual at each generation */
-    String bestMaxDepthFilename = "reports/bestMaxDepth.csv";
-    
-    /** File to store the best tree at the end of the algorithm */
-    String bestTreeFilename = "reports/bestTree.csv";
-    
-    /** File to store the fitness of the best individual at each generation */
-    String bestFilename = "reports/bestFitness.csv";
-    
-    /** File to store the average fitness of the individuals at each generation */
-    String avgFilename = "reports/avgFitness.csv";
-    
-    /** File to store the average fitness of the individuals at each generation */
-    String medianFilename = "reports/medianFitness.csv";
-    
-    /** File to store the worst fitness of the individuals at each generation */
-    String worstFilename = "reports/worstFitness.csv";
-    
-    /** File to store evaluation over test set of final ensemble */
-    String classificationReportFilename = "reports/testResults.csv";
-    
-    /** File to store evaluation over test set of given generation ensemble */
-    String iterTestReportFilename = "reports/iter_testResults.csv";
+	String classificationReportFilename = "reports/testResults.csv";
 	
 	private long time_start;
 	
@@ -208,8 +187,6 @@ public class Listener implements IAlgorithmListener, IConfigure
 		// Set save individuals (default false)
 		boolean saveCompletePopulation = settings.getBoolean("save-complete-population", false);
 		setSaveCompletePopulation(saveCompletePopulation);	
-		
-		testReportFrequency = settings.getInt("test-report-frequency", Integer.MAX_VALUE); 
 	}
 
 	// IAlgorithmListener interface
@@ -260,12 +237,13 @@ public class Listener implements IAlgorithmListener, IConfigure
 		doIterationReport((PopulationAlgorithm) event.getAlgorithm(), true);
 		
 		BufferedWriter bestLeavesWriter = null;
-		BufferedWriter bestMaxDepthWriter = null;
 		BufferedWriter bestTreeWriter = null;
 		BufferedWriter bestWriter = null;
 		BufferedWriter medianWriter = null;
 		BufferedWriter avgWriter = null;
 		BufferedWriter worstWriter = null;
+		BufferedWriter pcWriter = null;
+		BufferedWriter pmWriter = null;
 		BufferedWriter classificationReportWriter = null;
 		
 		try {
@@ -273,17 +251,13 @@ public class Listener implements IAlgorithmListener, IConfigure
 			bestLeavesWriter.write("\n");
 			bestLeavesWriter.close();
 			
-			bestMaxDepthWriter = new BufferedWriter(new FileWriter(bestMaxDepthFilename, true));
-			bestMaxDepthWriter.write("\n");
-			bestMaxDepthWriter.close();
-			
 			// Fitness comparator, inhabitants, and best individual
 			Comparator<IFitness> comparator = ((PopulationAlgorithm) event.getAlgorithm()).getEvaluator().getComparator();
 			List<IIndividual> inhabitants = ((PopulationAlgorithm) event.getAlgorithm()).getInhabitants();
 			IIndividual best = IndividualStatistics.bestIndividual(inhabitants, comparator);
 			String bestGen = ((StringTreeIndividual)best).getGenotype();
 			bestTreeWriter = new BufferedWriter(new FileWriter(bestTreeFilename, true));
-			int [] votesPerLabel = TreeUtils.votesPerLabel(bestGen, ((Alg)event.getAlgorithm()).klabelsets, ((Alg)event.getAlgorithm()).getNumLabels());
+			int [] votesPerLabel = TreeUtils.votesPerLabel(bestGen, ((Alg)event.getAlgorithm()).klabelsets, ((Alg)event.getAlgorithm()).fullTrainData.getNumLabels());
 			double avgVotes = TreeUtils.avgVotes(votesPerLabel);
 			bestTreeWriter.write(bestGen + " " + Arrays.toString(votesPerLabel) + "; " + avgVotes + "; " + utils.getLeaves(bestGen).size() + ";\n");
 			bestTreeWriter.close();
@@ -303,6 +277,14 @@ public class Listener implements IAlgorithmListener, IConfigure
 			worstWriter = new BufferedWriter(new FileWriter(worstFilename, true));
 			worstWriter.write("\n");
 			worstWriter.close();
+			
+			pcWriter = new BufferedWriter(new FileWriter(pcFilename, true));
+			pcWriter.write("\n");
+			pcWriter.close();
+			
+			pmWriter = new BufferedWriter(new FileWriter(pmFilename, true));
+			pmWriter.write("\n");
+			pmWriter.close();
 		} catch(Exception e) {
 			e.printStackTrace();
 			System.exit(-1);
@@ -331,10 +313,10 @@ public class Listener implements IAlgorithmListener, IConfigure
 				for(int i=0; i<results.getMeasures().size(); i++) {
 					classificationReportWriter.write(results.getMeasures().get(i).getName() + "; ");
 				}
-				classificationReportWriter.write("time(ms); generations\n");
+				classificationReportWriter.write("time(ms); iters; \n");
 			}
 			
-			classificationReportWriter.write(testData.getDataSet().relationName() + "_" + ((Alg)event.getAlgorithm()).getSeed() + "; " + results.toCSV().replace(",", ".") + time + ";" + ((Alg)event.getAlgorithm()).getGeneration() + ";\n");
+			classificationReportWriter.write(testData.getDataSet().relationName() + "_" + ((Alg)event.getAlgorithm()).getSeed() + "; " + results.toCSV().replace(",", ".") + time + "; " + ((Alg)event.getAlgorithm()).getGeneration() + ";\n");
 			classificationReportWriter.close();
 		} catch (Exception e1) {
 			e1.printStackTrace();
@@ -394,116 +376,81 @@ public class Listener implements IAlgorithmListener, IConfigure
 		int generation = algorithm.getGeneration();
 		
 		// Check if this is correct generation
-		if (force || generation%reportFrequency == 0) {
-			// Do population report
-			StringBuffer sb = new StringBuffer("Generation " + generation + " Report\n");
-			// Best individual
-			IIndividual best = IndividualStatistics.bestIndividual(inhabitants, comparator);		
-			sb.append("Best individual: "+best+ ((SimpleValueFitness)best.getFitness()).getValue() +"\n");
-			// Worst individual
-			IIndividual worst = IndividualStatistics.worstIndividual(inhabitants, comparator);
-			sb.append("Worst individual: "+worst+ ((SimpleValueFitness)worst.getFitness()).getValue() + "\n");
-			// Median individual
-			IIndividual median = IndividualStatistics.medianIndividual(inhabitants, comparator);
-			sb.append("Median individual: "+median+  ((SimpleValueFitness)median.getFitness()).getValue() + "\n");		
-			// Average fitness and fitness variance
-			double [] avgvar = IndividualStatistics.averageFitnessAndFitnessVariance(inhabitants);
-			sb.append("Average fitness = " + avgvar[0]+"\n");
-			sb.append("Fitness variance = "+ avgvar[1]+"\n");
-			
-			// Write report string to the standard output (if necessary) 
-			if (reportOnConsole) {
-				System.out.println(sb.toString());
-			}
-			
-			// Write string to the report file (if necessary) 
-			if (reportOnFile) {
-				try {
-					reportFileWriter.write(sb.toString());
-					reportFileWriter.flush();
-				} 
-				catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-			
-			BufferedWriter bestLeavesWriter = null;
-			BufferedWriter bestMaxDepthWriter = null;
-			BufferedWriter bestWriter = null;
-			BufferedWriter medianWriter = null;
-			BufferedWriter avgWriter = null;
-			BufferedWriter worstWriter = null;
-			
+		if (!force && generation%reportFrequency != 0) {
+			return;
+		}			
+		
+		// Do population report
+		StringBuffer sb = new StringBuffer("Generation " + generation + " Report\n");
+		// Best individual
+		IIndividual best = IndividualStatistics.bestIndividual(inhabitants, comparator);		
+		sb.append("Best individual: "+best+ ((SimpleValueFitness)best.getFitness()).getValue() +"\n");
+		// Worst individual
+		IIndividual worst = IndividualStatistics.worstIndividual(inhabitants, comparator);
+		sb.append("Worst individual: "+worst+ ((SimpleValueFitness)worst.getFitness()).getValue() + "\n");
+		// Median individual
+		IIndividual median = IndividualStatistics.medianIndividual(inhabitants, comparator);
+		sb.append("Median individual: "+median+  ((SimpleValueFitness)median.getFitness()).getValue() + "\n");		
+		// Average fitness and fitness variance
+		double [] avgvar = IndividualStatistics.averageFitnessAndFitnessVariance(inhabitants);
+		sb.append("Average fitness = " + avgvar[0]+"\n");
+		sb.append("Fitness variance = "+ avgvar[1]+"\n");
+		
+		// Write report string to the standard output (if necessary) 
+		if (reportOnConsole) {
+			System.out.println(sb.toString());
+		}
+		
+		// Write string to the report file (if necessary) 
+		if (reportOnFile) {
 			try {
-				bestLeavesWriter = new BufferedWriter(new FileWriter(bestLeavesFilename, true));
-				bestLeavesWriter.write(utils.countLeaves(((StringTreeIndividual)best).getGenotype()) + "; ");
-				bestLeavesWriter.close();
-				
-				bestMaxDepthWriter = new BufferedWriter(new FileWriter(bestMaxDepthFilename, true));
-				bestMaxDepthWriter.write(utils.calculateTreeMaxDepth(((StringTreeIndividual)best).getGenotype()) + "; ");
-				bestMaxDepthWriter.close();
-				
-				bestWriter = new BufferedWriter(new FileWriter(bestFilename, true));
-				bestWriter.write(((SimpleValueFitness)best.getFitness()).getValue() + "; ");
-				bestWriter.close();
-				
-				medianWriter = new BufferedWriter(new FileWriter(medianFilename, true));
-				medianWriter.write(((SimpleValueFitness)median.getFitness()).getValue() + "; ");
-				medianWriter.close();
-				
-				avgWriter = new BufferedWriter(new FileWriter(avgFilename, true));
-				avgWriter.write(avgvar[0] + "; ");
-				avgWriter.close();
-				
-				worstWriter = new BufferedWriter(new FileWriter(worstFilename, true));
-				worstWriter.write(((SimpleValueFitness)worst.getFitness()).getValue() + "; ");
-				worstWriter.close();
-			} catch(Exception e) {
+				reportFileWriter.write(sb.toString());
+				reportFileWriter.flush();
+			} 
+			catch (IOException e) {
 				e.printStackTrace();
-				System.exit(-1);
 			}
 		}
 		
-		// Check if test report should be done
-        if(generation % testReportFrequency == 0 && generation > 0) {
-        	Alg alg = (Alg)algorithm;
-            
-            BufferedWriter testIterReportWriter = null;
-            
-            //Predict over test data and do test report
-            EMLC ensemble = ((Alg)algorithm).getEnsemble();
-            MultiLabelInstances testData = alg.getTestData();
-            List<Measure> measures = utils.prepareMeasures(testData);
-            Evaluation results;
-            try {
-                results = new Evaluation(measures, testData);
-                mulan.evaluation.Evaluator eval = new mulan.evaluation.Evaluator();
-                        
-                ensemble.resetSeed(alg.getSeed());
-                results = eval.evaluate(ensemble, testData, measures);
-                        
-                //If the file didn't exist, print the header
-                boolean printHeader = false;
-//                if(!Utils.fileExist(iterTestReportFilename)) {
-//                    printHeader = true;
-//                }
-                        
-                testIterReportWriter = new BufferedWriter(new FileWriter(iterTestReportFilename, true));
-                if(printHeader) {
-                    testIterReportWriter.write(" ; ; ");
-                    for(int i=0; i<results.getMeasures().size(); i++) {
-                        testIterReportWriter.write(results.getMeasures().get(i).getName() + "; ");
-                    }
-                    testIterReportWriter.write("time(ms);\n");
-                }
-                        
-                testIterReportWriter.write(generation + ";" +testData.getDataSet().relationName() + "_" + alg.getSeed() + "; " + results.toCSV().replace(",", ".") + ";\n");
-                testIterReportWriter.close();
-            } catch (Exception e1) {
-                e1.printStackTrace();
-            }
-        }
+		BufferedWriter bestLeavesWriter = null;
+		BufferedWriter bestWriter = null;
+		BufferedWriter medianWriter = null;
+		BufferedWriter avgWriter = null;
+		BufferedWriter worstWriter = null;
+		BufferedWriter pcWriter = null;
+		BufferedWriter pmWriter = null;
 		
-		
+		try {
+			bestLeavesWriter = new BufferedWriter(new FileWriter(bestLeavesFilename, true));
+			bestLeavesWriter.write(utils.countLeaves(((StringTreeIndividual)best).getGenotype()) + "; ");
+			bestLeavesWriter.close();
+			
+			bestWriter = new BufferedWriter(new FileWriter(bestFilename, true));
+			bestWriter.write(((SimpleValueFitness)best.getFitness()).getValue() + "; ");
+			bestWriter.close();
+			
+			medianWriter = new BufferedWriter(new FileWriter(medianFilename, true));
+			medianWriter.write(((SimpleValueFitness)median.getFitness()).getValue() + "; ");
+			medianWriter.close();
+			
+			avgWriter = new BufferedWriter(new FileWriter(avgFilename, true));
+			avgWriter.write(avgvar[0] + "; ");
+			avgWriter.close();
+			
+			worstWriter = new BufferedWriter(new FileWriter(worstFilename, true));
+			worstWriter.write(((SimpleValueFitness)worst.getFitness()).getValue() + "; ");
+			worstWriter.close();
+			
+			pcWriter = new BufferedWriter(new FileWriter(pcFilename, true));
+			pcWriter.write(((Alg)algorithm).getRecombinationProb() + "; ");
+			pcWriter.close();
+			
+			pmWriter = new BufferedWriter(new FileWriter(pmFilename, true));
+			pmWriter.write(((Alg)algorithm).getMutationProb() + "; ");
+			pmWriter.close();
+		} catch(Exception e) {
+			e.printStackTrace();
+			System.exit(-1);
+		}
 	}
 }

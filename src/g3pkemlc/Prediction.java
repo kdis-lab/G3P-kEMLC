@@ -3,6 +3,7 @@ package g3pkemlc;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Hashtable;
 
 /**
  * Class implementing the predictions of a given classifier

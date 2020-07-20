@@ -3,6 +3,7 @@ package net.sf.jclec.stringtree;
 import net.sf.jclec.ISpecies;
 
 import net.sf.jclec.base.AbstractRecombinator;
+import net.sf.jclec.binarray.BinArraySpecies;
 
 /**
  * BinArrayIndividual (and subclasses) specific recombinator.  

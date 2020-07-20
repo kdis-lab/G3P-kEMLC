@@ -2,6 +2,7 @@ package g3pkemlc.utils;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Locale;
 
@@ -36,10 +37,15 @@ public class KLabelsetGenerator {
 	int nLabelsets;
 	
 	/**
-	 * True if the generation of the k-labelsets is biased by the frequency of the labels.
+	 * True if the generation of the k-labelsets is biased by the relationship among labels.
 	 * If false, they are randomly generated.
 	 */
-	boolean freqBias;
+	boolean phiBiased;
+	
+	/**
+	 * Phi matrix of correlation among labels
+	 */
+	double[][] phi;
 	
 	/**
 	 * Frequency of labels in the dataset. Used if freqBias is true.
@@ -57,6 +63,11 @@ public class KLabelsetGenerator {
 	IRandGen randgen;
 	
 	/**
+	 * Utils
+	 */
+	Utils utils = new Utils();
+	
+	/**
 	 * Empty constructor
 	 */
 	public KLabelsetGenerator() {
@@ -64,7 +75,7 @@ public class KLabelsetGenerator {
 		this.maxK = 0;
 		this.nLabels = 0;
 		this.nLabelsets = 0;
-		this.freqBias = false;
+		this.phiBiased = false;
 		this.freq = null;
 		this.klabelsets = null;
 	}
@@ -81,7 +92,7 @@ public class KLabelsetGenerator {
 		this.maxK = maxK;
 		this.nLabels = nLabels;
 		this.nLabelsets = 0;
-		this.freqBias = false;
+		this.phiBiased = false;
 		this.freq = null;
 		this.klabelsets = new ArrayList<KLabelset>();
 	}
@@ -99,18 +110,19 @@ public class KLabelsetGenerator {
 		this.maxK = maxK;
 		this.nLabels = nLabels;
 		this.nLabelsets = nLabelsets;
-		this.freqBias = false;
+		this.phiBiased = false;
 		this.freq = null;
 		this.klabelsets = new ArrayList<KLabelset>(nLabelsets);
 	}
 	
 	/**
-	 * Setter for freqBias
+	 * Setter for phiBiased
 	 * 
-	 * @param freqBias true if the k-labelset generation is biased by the frequency of labels
+	 * @param phiBiased true if the k-labelset generation is biased by the relationship among labels
 	 */
-	public void setFreqBias(boolean freqBias) {
-		this.freqBias = freqBias;
+	public void setPhiBiased(boolean phiBiased, double[][] phi) {
+		this.phiBiased = phiBiased;
+		this.phi = phi;
 	}
 	
 	/**
@@ -165,6 +177,60 @@ public class KLabelsetGenerator {
 	}
 	
 	/**
+	 * Generate k-labelset biased by phi correlation among labels
+	 * 
+	 * @param k Size of the labelset to generate
+	 * @return Phi-biased generated k-labelset
+	 */
+	private KLabelset phiBasedKLabelset(int k) {
+		double[] weights = new double[nLabels];
+		
+		ArrayList<Integer> klabelset = new ArrayList<Integer>(k);
+		ArrayList<Integer> inactive = new ArrayList<Integer>(nLabels);
+		for(int i=0; i<nLabels; i++) {
+			inactive.add(i);
+		}		
+		
+		//Select first label randomly
+		int r = randgen.choose(0, nLabels);
+		klabelset.add(r);
+		inactive.remove((Integer)r);
+		
+		//Add labels until desired size
+		Arrays.fill(weights, 0.1);
+		do {
+			//Recalculate weights
+			for(Integer inLabel : inactive) {
+				for(Integer acLabel : klabelset) {
+					weights[inLabel] += Math.abs(phi[inLabel][acLabel]);
+				}
+			}
+			
+			do {
+				r = utils.selectRandomlyWithWeights(weights);
+			}while(klabelset.contains(r));
+			
+			klabelset.add(r);
+			inactive.remove((Integer)r);
+		}while(klabelset.size() < k);
+		
+		Collections.sort(klabelset);
+		
+		return new KLabelset(k, this.nLabels, klabelset);
+	}
+	
+	/**
+	 * Generate a phi-based k-labelset being k in the range [minK, maxK]
+	 * 
+	 * @param minK Minimum allowed value for k
+	 * @param maxK Maximum allowed value for k
+	 * @return Phi-based generated k-labelset
+	 */
+	private KLabelset phiBasedKLabelset(int minK, int maxK) {
+		return phiBasedKLabelset(randgen.choose(minK, maxK+1));
+	}
+	
+	/**
 	 * Generate an array of nLabelsets k-labelsets
 	 * The size of each k-labelset is randomly selected in the range [minK, maxK]
 	 * 
@@ -176,20 +242,34 @@ public class KLabelsetGenerator {
 		this.klabelsets = new ArrayList<KLabelset>(nLabelsets);
 		KLabelset nextKLabelset;
 		
-		//Generate random k-labelsets
-		if(! freqBias) {
-			do {
+		do {
+			if(! phiBiased) {
 				//Add a randomly generated k-labelset if it did not exist
 				nextKLabelset = randomKLabelset(this.minK, this.maxK);
-				
-				if(! klabelsets.contains(nextKLabelset)) {
-					klabelsets.add(nextKLabelset);
-				}
-			}while(klabelsets.size() < nLabelsets);
-		}
-		else {
+			}
+			else {
+				nextKLabelset = phiBasedKLabelset(this.minK, this.maxK);
+			}
 			
-		}
+			if(! klabelsets.contains(nextKLabelset)) {
+				klabelsets.add(nextKLabelset);
+			}
+		}while(klabelsets.size() < nLabelsets);
+		
+//		//Generate random k-labelsets
+//		if(! phiBiased) {
+//			do {
+//				//Add a randomly generated k-labelset if it did not exist
+//				nextKLabelset = randomKLabelset(this.minK, this.maxK);
+//				
+//				if(! klabelsets.contains(nextKLabelset)) {
+//					klabelsets.add(nextKLabelset);
+//				}
+//			}while(klabelsets.size() < nLabelsets);
+//		}
+//		else {
+//			
+//		}
 		
 		return this.klabelsets;
 	}

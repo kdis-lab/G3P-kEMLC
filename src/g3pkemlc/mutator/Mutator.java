@@ -13,7 +13,6 @@ import net.sf.jclec.stringtree.StringTreeSpecies;
  * @author Jose M. Moyano
  *
  */
-@Deprecated
 public class Mutator extends StringTreeMutator {
 
 	/** Serialization constant */
@@ -31,14 +30,9 @@ public class Mutator extends StringTreeMutator {
 	int nMax;
 	
 	/**
-	 * Min number of children of each node
+	 * Number of childs of each node
 	 */
-	int minChildren;
-	
-	/**
-	 * Max number of children of each node
-	 */
-	int maxChildren;
+	int nChilds;
 	
 	/**
 	 * Utils object for working with GP individuals
@@ -87,12 +81,12 @@ public class Mutator extends StringTreeMutator {
 		this.nMax = nMax;
 	}
 	
-	public void setMinChildren(int minChildren) {
-		this.minChildren = minChildren;
-	}
-	
-	public void setMaxChildren(int maxChildren) {
-		this.maxChildren = maxChildren;
+	/**
+	 * Setter for the number of children at each node
+	 * @param nChilds
+	 */
+	public void setnChilds(int nChilds) {
+		this.nChilds = nChilds;
 	}
 
 	/**
@@ -109,10 +103,11 @@ public class Mutator extends StringTreeMutator {
 	}
 	
 	/**
-	 * Mutate an individual
+	 * Cross individuals and obtains two new sons.
 	 * 
-	 * @param ind Individual to mutate
-	 * @return Mutated individual
+	 * @param ind1 First parent
+	 * @param ind2 Second parent
+	 * @return Array with two child individuals
 	 */
 	public String mutate(String ind) {
 		boolean chooseLeaf = randgen.coin();
@@ -138,7 +133,7 @@ public class Mutator extends StringTreeMutator {
 		else {
 			//Create a new subtree of maximum allowedDepth to substitute the node
 			IndividualCreator creator = new IndividualCreator(randgen);
-			newSubtree = creator.create(nMax, allowedDepth, minChildren, maxChildren, 0.0);
+			newSubtree = creator.create(nMax, allowedDepth, nChilds);
 			
 			//Remove here the ";" indicating the end of the individual
 			newSubtree = newSubtree.substring(0, newSubtree.length()-1);

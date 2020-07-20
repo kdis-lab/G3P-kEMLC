@@ -154,16 +154,18 @@ public class Evaluator extends AbstractParallelEvaluator {
 		
 		//Get final predictions by reducing the tree
 		Prediction pred = TreeUtils.reduce(gen, key, tablePredictions, fullTrainData.getNumInstances(), useConfidences);
-
+		
 		//If the tree does not cover all the labels, the fitness is negative
 		if(pred.labelIndices.size() != fullTrainData.getNumLabels()) {
 			//The fitness is lower (worse) as it cover less number of labels
 			//	In case of hipothetically selecting two negative fitness individuals in tournament, the one that cover more labels is selected
 			fitness = ((pred.labelIndices.size()*1.0) / fullTrainData.getNumLabels()) - 1;
+//			fitness = -1.0;
 		}
 		else {
-			//Calculate fitness (with ExF and MaF) with the reduced predictions
+			//Calculate fitness (ExF) with the reduced predictions
 			fitness = beta*exF(pred, fullTrainData) + (1-beta)*maF(pred, fullTrainData);
+//			fitness = exF(pred, fullTrainData);
 		}
 		
 		//Set individual fitness

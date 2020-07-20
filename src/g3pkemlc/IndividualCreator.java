@@ -1,8 +1,5 @@
 package g3pkemlc;
 
-import java.util.Locale;
-
-import g3pkemlc.utils.Utils;
 import net.sf.jclec.util.random.IRandGen;
 
 /**
@@ -14,25 +11,10 @@ import net.sf.jclec.util.random.IRandGen;
 public class IndividualCreator {
 
 	/**
-	 * Utils object for working with GP individuals
-	 */
-	Utils utils = new Utils();
-	
-	/**
 	 * Random numbers generator
 	 */
 	IRandGen randgen;
 	
-	/**
-	 * Standard deviation parameter for gaussian to calculate thresholds
-	 */
-	double gaussianStdv;
-	
-	/**
-	 * Constructor
-	 * 
-	 * @param randgen Random numbers generator
-	 */
 	public IndividualCreator(IRandGen randgen) {
 		this.randgen = randgen;
 	}
@@ -52,10 +34,7 @@ public class IndividualCreator {
 	 * @param maxDepth Maximum depth of the tree
 	 * @return Individual as String
 	 */
-	public String create(int nMax, int maxDepth, int minChildren, int maxChildren, double gaussianStdv) {
-		//Set stdv for gaussian thresholds
-		this.gaussianStdv = gaussianStdv;
-		
+	public String create(int nMax, int maxDepth, int nChilds) {
 		//The individual at the beginning is the node 'S' and the end of individual ';'
 		String ind = "S;";
 		
@@ -68,19 +47,19 @@ public class IndividualCreator {
 		do {
 			switch (ind.charAt(pos)) {
 			//If initial 'S' node, create a random number of child nodes 'C'.
-				//Random in [minChildren, maxChild] range
+				//Random in [2, maxChild] range
 			case 'S':
-				ind = replace(ind, pos, childRandomSize(minChildren, maxChildren));
+				ind = replace(ind, pos, childRandomSize(nChilds));
 				break;
 			
 			//If a node 'C' is found, it is replaced by one of:
-			//	- Random number of child in [Children, maxChild] range
+			//	- Random number of child in [2, maxChild] range
 			//	- Random leaf
 			//If the current depth is equal than the max allowed depth, a random leaf is automatically included
 			case 'C':
 				if(currDepth < maxDepth) {
 					if(randgen.coin()) {
-						ind = replace(ind, pos, childRandomSize(minChildren, maxChildren));
+						ind = replace(ind, pos, childRandomSize(nChilds));
 					}
 					else {
 						//Replace current 'C' by random leaf in [0, nMax) range
@@ -118,17 +97,12 @@ public class IndividualCreator {
 	/**
 	 * Creates a child in the form (C ... C) including n times the 'C'
 	 * 
-	 * For calculating normal distribution: https://www.uv.es/ceaces/scrips/tablas/tanormal.htm
-	 * 
 	 * @param n Number of children
 	 * @return String
 	 */
 	private String child(int n) {
-		//The threshold is calculated with a gaussian, where the probability to be between 0 and 1 is 99.9%
-		double threshold = utils.randomThreshold(gaussianStdv);
-		
-		//Start with open parenthesis, 'v' (for voting), and threshold ('.\d+')
-		String child = "(v." + String.format(Locale.US, "%.2f", threshold).split("\\.")[1] + " ";
+		//Start with open parenthesis
+		String child = "(";
 		
 		//Add n times the "C" and a space
 		for(int i=0; i<n; i++) {
@@ -144,12 +118,11 @@ public class IndividualCreator {
 	/**
 	 * Creates a child in the form (C ... C) including the 'C' a random number of times between [2, max]
 	 * 
-	 * @param minChildren Min number of children
 	 * @param maxChildren Max number of children
 	 * @return String
 	 */
-	private String childRandomSize(int minChildren, int maxChildren) {
-		return child(randgen.choose(minChildren, maxChildren+1)); //between min and max, included
+	private String childRandomSize(int maxChildren) {
+		return child(randgen.choose(2, maxChildren+1)); //between 2 and max, included
 	}
 	
 	/**

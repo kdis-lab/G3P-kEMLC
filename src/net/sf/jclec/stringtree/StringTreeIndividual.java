@@ -4,6 +4,7 @@ import net.sf.jclec.IFitness;
 import net.sf.jclec.IIndividual;
 
 import net.sf.jclec.base.AbstractIndividual;
+import net.sf.jclec.binarray.BinArrayIndividual;
 
 import org.apache.commons.lang.builder.EqualsBuilder;
 
@@ -13,6 +14,7 @@ import org.apache.commons.lang.builder.EqualsBuilder;
  * @author Sebastian Ventura
  */
 
+@SuppressWarnings("deprecation")
 public class StringTreeIndividual extends AbstractIndividual<String> 
 {
 	/////////////////////////////////////////////////////////////////
