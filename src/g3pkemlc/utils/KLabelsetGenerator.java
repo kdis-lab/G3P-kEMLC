@@ -182,14 +182,14 @@ public class KLabelsetGenerator {
 	 * @param k Size of the labelset to generate
 	 * @return Phi-biased generated k-labelset
 	 */
-	private KLabelset phiBasedKLabelset(int k) {
+	private KLabelset phiBasedKLabelset(int k, int[] appearances) {
 		double[] weights = new double[nLabels];
 		
 		ArrayList<Integer> klabelset = new ArrayList<Integer>(k);
 		ArrayList<Integer> inactive = new ArrayList<Integer>(nLabels);
 		for(int i=0; i<nLabels; i++) {
 			inactive.add(i);
-		}		
+		}
 		
 		//Select first label randomly
 		int r = randgen.choose(0, nLabels);
@@ -197,12 +197,20 @@ public class KLabelsetGenerator {
 		inactive.remove((Integer)r);
 		
 		//Add labels until desired size
-		Arrays.fill(weights, 0.1);
+		Arrays.fill(weights, 0.0); //0.1
 		do {
 			//Recalculate weights
 			for(Integer inLabel : inactive) {
 				for(Integer acLabel : klabelset) {
 					weights[inLabel] += Math.abs(phi[inLabel][acLabel]);
+				}
+			}
+			
+			float log = 0;
+			for(int i=0; i<nLabels; i++) {
+				log = (float) Math.log10(appearances[i]+1);
+				if(log < 1) {
+					weights[i] += (1-log);
 				}
 			}
 			
@@ -226,8 +234,8 @@ public class KLabelsetGenerator {
 	 * @param maxK Maximum allowed value for k
 	 * @return Phi-based generated k-labelset
 	 */
-	private KLabelset phiBasedKLabelset(int minK, int maxK) {
-		return phiBasedKLabelset(randgen.choose(minK, maxK+1));
+	private KLabelset phiBasedKLabelset(int minK, int maxK, int [] appearances) {
+		return phiBasedKLabelset(randgen.choose(minK, maxK+1), appearances);
 	}
 	
 	/**
@@ -250,7 +258,7 @@ public class KLabelsetGenerator {
 				nextKLabelset = randomKLabelset(this.minK, this.maxK);
 			}
 			else {
-				nextKLabelset = phiBasedKLabelset(this.minK, this.maxK);
+				nextKLabelset = phiBasedKLabelset(this.minK, this.maxK, appearances);
 			}
 			
 			if(! klabelsets.contains(nextKLabelset)) {
