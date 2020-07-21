@@ -3,8 +3,6 @@ package g3pkemlc;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Hashtable;
-
 /**
  * Class implementing the predictions of a given classifier
  * 
@@ -29,9 +27,9 @@ public class Prediction {
 	public int[] labelVotes;
 	
 	/**
-	 * Prediction (double to be able to store confidences)
+	 * Prediction (float to be able to store confidences)
 	 */
-	public double[][] pred;
+	public float[][] pred;
 	
 	/**
 	 * Default constructor
@@ -52,7 +50,7 @@ public class Prediction {
 		this.nInstances = nInstances;
 		this.labelIndices = new ArrayList<Integer>(0);
 		this.labelVotes = new int[0];
-		this.pred = new double[nInstances][];
+		this.pred = new float[nInstances][];
 	}
 	
 	/**
@@ -61,7 +59,7 @@ public class Prediction {
 	 * @param labelIndices Indices (of the original dataset) of the labels included in the prediction
 	 * @param prediction Prediction of the classifier (allows confidence values)
 	 */
-	public Prediction(int[] labelIndices, double[][] prediction) {
+	public Prediction(int[] labelIndices, float[][] prediction) {
 		this.nInstances = prediction.length;
 		
 		this.labelIndices = new ArrayList<Integer>(labelIndices.length);
@@ -96,7 +94,7 @@ public class Prediction {
 	 * @param threshold Threshold to determine relevant and irrelevant labels
 	 * @return Bipartitions boolean matrix with bipartitions
 	 */
-	public boolean[][] getBipartition(double threshold) {
+	public boolean[][] getBipartition(float threshold) {
 		boolean[][] bipartition = new boolean[nInstances][labelIndices.size()];
 		
 		for(int i=0; i<nInstances; i++) {
@@ -120,7 +118,7 @@ public class Prediction {
 	 * @param threshold Threshold to determine relevant and irrelevant labels
 	 * @return Bipartitions
 	 */
-	public boolean[] getBipartition(int instance, double threshold) {
+	public boolean[] getBipartition(int instance, float threshold) {
 		boolean[] bipartition = new boolean[labelIndices.size()];
 		
 		for(int j=0; j<labelIndices.size(); j++) {
@@ -161,7 +159,7 @@ public class Prediction {
 		
 		//Create arrays for new labelVotes and new predictions
 		int[] newLabelVotes = new int[newLabelIndices.size()];
-		double[][] newPred = new double[this.nInstances][newLabelIndices.size()];
+		float[][] newPred = new float[this.nInstances][newLabelIndices.size()];
 		
 		int currLabelIndex;
 		//For each label index in any of the predictions (i.e., in newLabelIndices)
@@ -214,7 +212,7 @@ public class Prediction {
 	 * 
 	 * @param other Prediction to add to the current one
 	 */
-	public void addPrediction(int[] labelIndices, double[][] pred) {
+	public void addPrediction(int[] labelIndices, float[][] pred) {
 		this.addPrediction(new Prediction(labelIndices, pred));
 	}
 		
@@ -224,7 +222,7 @@ public class Prediction {
 	 * 
 	 * @param threshold Threshold
 	 */
-	public void divideAndThresholdPrediction(double threshold) {
+	public void divideAndThresholdPrediction(float threshold) {
 		for(int i=0; i<nInstances; i++) {
 			for(int j=0; j<labelIndices.size(); j++) {
 				if((this.pred[i][j])/labelVotes[j] >= threshold) {

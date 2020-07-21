@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.IntStream;
 
 import g3pkemlc.utils.DatasetTransformation;
 import g3pkemlc.utils.KLabelset;
@@ -134,7 +135,7 @@ public class EMLC extends MultiLabelMetaLearner {
 	@Override
 	protected MultiLabelOutput makePredictionInternal(Instance instance) throws Exception, InvalidDataException {
 		//Get final prediction by reducing the tree
-		double [] confs = reduce(genotype, instance).pred[0];
+		float [] confs = reduce(genotype, instance).pred[0];
 		
 		//Transform to multi-label output
 		boolean[] bip = new boolean[numLabels];
@@ -147,7 +148,7 @@ public class EMLC extends MultiLabelMetaLearner {
 			}
 		}
 		
-		return new MultiLabelOutput(bip, confs);
+		return new MultiLabelOutput(bip, IntStream.range(0, confs.length).mapToDouble(i -> confs[i]).toArray());
 	}
 	
 	/**
@@ -228,7 +229,7 @@ public class EMLC extends MultiLabelMetaLearner {
 			pred.divide();
 		}
 		else {
-			pred.divideAndThresholdPrediction(0.5);
+			pred.divideAndThresholdPrediction((float)0.5);
 		}
 		
 		return pred;
@@ -241,13 +242,13 @@ public class EMLC extends MultiLabelMetaLearner {
 	 * @param instance Instance to predict
 	 * @return Predictions
 	 */
-	protected double[][] getPredictions(MultiLabelLearner learner, Instance instance){
-		double[][] pred = new double[1][numLabels];
+	protected float[][] getPredictions(MultiLabelLearner learner, Instance instance){
+		float[][] pred = new float[1][numLabels];
 		pred[0] = null;
 		
 		try {
 			if(useConfidences) {
-				pred[0] = learner.makePrediction(instance).getConfidences();
+				pred[0] = utils.doublesToFloat(learner.makePrediction(instance).getConfidences());
 			}
 			else {
 				pred[0] = utils.bipartitionToConfidence(learner.makePrediction(instance).getBipartition());
@@ -259,6 +260,8 @@ public class EMLC extends MultiLabelMetaLearner {
 		
 		return pred;
 	}
+	
+	
 
 	@Override
 	public TechnicalInformation getTechnicalInformation() {

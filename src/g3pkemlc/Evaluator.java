@@ -191,7 +191,7 @@ public class Evaluator extends AbstractParallelEvaluator {
 		double maF = 0.0;
 		
 		for(int i=0; i<mlData.getNumInstances(); i++) {
-			boolean[] bip = utils.confidenceToBipartition(pred.pred[i], 0.5);
+			boolean[] bip = utils.confidenceToBipartition(pred.pred[i], (float)0.5);
 			for(int j=0; j<mlData.getNumLabels(); j++) {
 				//Get ground truth for all labels in i-th instance
 				if(mlData.getDataSet().get(i).value(labelIndices[j]) >= 0.5) {
@@ -249,7 +249,7 @@ public class Evaluator extends AbstractParallelEvaluator {
 			}
 			
 			//Calculate exF for prediction (as boolean bipartition) and ground truth of i-th instance
-			exF += exFInstance(utils.confidenceToBipartition(pred.pred[i], 0.5), ground);
+			exF += exFInstance(utils.confidenceToBipartition(pred.pred[i], (float)0.5), ground);
 		}
 		
 		//Divide the exF by the number of instances and return it

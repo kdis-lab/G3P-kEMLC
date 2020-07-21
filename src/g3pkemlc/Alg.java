@@ -84,7 +84,7 @@ public class Alg extends SGE {
 	/**
 	 * Ratio of instances sampled at each train data
 	 */
-	double sampleRatio;
+	float sampleRatio;
 	
 	/**
 	 * Test dataset
@@ -144,7 +144,7 @@ public class Alg extends SGE {
 	/**
 	 * Beta for fitness
 	 */
-	double beta;
+	float beta;
 	
 	/**
 	 * Stop condition: Number of iterations without improvement of the best
@@ -154,7 +154,7 @@ public class Alg extends SGE {
 	/**
 	 * Best fitness so fat
 	 */
-	double bestFitness = 0;
+	float bestFitness = -1;
 	
 	/**
 	 * Iteration in which best fitness was achieved
@@ -164,7 +164,7 @@ public class Alg extends SGE {
 	/**
 	 * Best average fitness value
 	 */
-	double bestAvgFitness = 0;
+	float bestAvgFitness = 0;
 	
 	/**
 	 * Indicate if individuals are created biased by phi-value of labels
@@ -268,7 +268,7 @@ public class Alg extends SGE {
 		String datasetTestFileName = configuration.getString("dataset.test-dataset");
 		String datasetXMLFileName = configuration.getString("dataset.xml");
 		
-		sampleRatio = configuration.getDouble("sampling-ratio");
+		sampleRatio = configuration.getFloat("sampling-ratio");
 		
 		minK = configuration.getInt("min-k");
 		maxK = configuration.getInt("max-k");
@@ -276,7 +276,7 @@ public class Alg extends SGE {
 		maxChildren = configuration.getInt("max-children");
 		maxDepth = configuration.getInt("max-depth");
 		useConfidences = configuration.getBoolean("use-confidences");
-		beta = configuration.getDouble("beta");
+		beta = configuration.getFloat("beta");
 		
 		phiBased = configuration.getBoolean("phi-based-individuals");
 		
@@ -287,7 +287,7 @@ public class Alg extends SGE {
 			fullTrainData = new MultiLabelInstances(datasetTrainFileName, datasetXMLFileName);
 			testData = new MultiLabelInstances(datasetTestFileName, datasetXMLFileName);
 			
-			double v = configuration.getDouble("v");
+			float v = configuration.getFloat("v");
 			nMLC = (int) Math.round((v * fullTrainData.getNumLabels()) / ((minK + maxK) / 2.0));
 
 			//Create folder for classifiers if it does not exist
@@ -302,6 +302,15 @@ public class Alg extends SGE {
 			if(phiBased) {
 				Statistics stat = new Statistics();
 				double [][] phi = stat.calculatePhi(fullTrainData);
+				
+				for(int i=0; i<phi.length; i++) {
+					for(int j=0; j<phi[0].length; j++) {
+						if(Double.isNaN(phi[i][j])) {
+							phi[i][j] = 0.0;
+						}
+					}
+				}
+				
 				klabelsetGen.setPhiBiased(true, phi);
 			}
 			else {
@@ -364,7 +373,7 @@ public class Alg extends SGE {
 		String bestGenotype = ((StringTreeIndividual)bselector.select(bset, 1).get(0)).getGenotype();
 		
 		//Get current best fitness with 4 decimal points
-		double currentBestFitness = ((SimpleValueFitness)((StringTreeIndividual)bselector.select(bset, 1).get(0)).getFitness()).getValue();
+		float currentBestFitness = (float)((SimpleValueFitness)((StringTreeIndividual)bselector.select(bset, 1).get(0)).getFitness()).getValue();
 		currentBestFitness *= 10000;
 		currentBestFitness = Math.round(currentBestFitness);
 		currentBestFitness /= 10000;
@@ -376,8 +385,8 @@ public class Alg extends SGE {
 		}
 		
 		//Modify crossover/mutation probabilities
-		double step = 0.02;
-		double avgFitness = IndividualStatistics.averageFitnessAndFitnessVariance(bset)[0];
+		float step = (float)0.02;
+		float avgFitness = (float)IndividualStatistics.averageFitnessAndFitnessVariance(bset)[0];
 		//If the average fitness is better than the best average so far, increase crossover probability
 		if(avgFitness > bestAvgFitness) {
 			bestAvgFitness = avgFitness;
@@ -394,7 +403,7 @@ public class Alg extends SGE {
 		}
 	
 		//Stop condition
-		if (generation >= (lastIterBestFitness+nItersWithoutImprovement) || generation >= maxOfGenerations) {			
+		if ((generation >= (lastIterBestFitness+nItersWithoutImprovement) && bestFitness > 0)|| generation >= maxOfGenerations) {			
 			System.out.println("Finished in generation " + generation);
 			
 			//Get base learner
@@ -521,7 +530,7 @@ public class Alg extends SGE {
 			utils.writeObject(learner, "mlc/classifier"+c+".mlc");
 			
 			//Get predictions of c-th classifier over all data
-			double[][] currentPredictions = new double[currentFullData.getNumInstances()][klabelsets.get(c).k];
+			float[][] currentPredictions = new float[currentFullData.getNumInstances()][klabelsets.get(c).k];
 			for(int i=0; i<currentFullData.getNumInstances(); i++) {
 				if(useConfidences) {
 					System.arraycopy(learner.makePrediction(currentFullData.getDataSet().get(i)).getConfidences(), 0, currentPredictions[i], 0, currentFullData.getNumLabels());

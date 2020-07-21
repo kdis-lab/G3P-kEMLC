@@ -389,8 +389,8 @@ public class Utils {
 	 * @param bip Bipartition
 	 * @return Confidences
 	 */
-	public double[] bipartitionToConfidence(boolean[] bip) {
-		double [] conf = new double[bip.length];
+	public float[] bipartitionToConfidence(boolean[] bip) {
+		float [] conf = new float[bip.length];
 		
 		for(int i=0; i<bip.length; i++) {
 			if(bip[i]) {
@@ -411,7 +411,7 @@ public class Utils {
 	 * @param threshold Threshold to determine relevant and irrelevant labels
 	 * @return Bipartition
 	 */
-	public boolean[] confidenceToBipartition(double[] conf, double threshold) {
+	public boolean[] confidenceToBipartition(float[] conf, float threshold) {
 		boolean[] bip = new boolean[conf.length];
 		
 		for(int i=0; i<conf.length; i++) {
@@ -528,4 +528,13 @@ public class Utils {
 		
 		return -1;
 	}
+	
+	public float[] doublesToFloat(double[] array) {
+        float[] inFloatForm = new float[array.length];
+        for (int i = 0; i < array.length; i++) {
+            inFloatForm[i] = (float) array[i];
+        }
+        
+        return inFloatForm;
+    }
 }

@@ -100,7 +100,7 @@ public class TreeUtils {
 			pred.divide();
 		}
 		else {
-			pred.divideAndThresholdPrediction(0.5);
+			pred.divideAndThresholdPrediction((float)0.5);
 		}
 
 		//Return combined prediction of corresponding nodes

@@ -242,6 +242,8 @@ public class KLabelsetGenerator {
 		this.klabelsets = new ArrayList<KLabelset>(nLabelsets);
 		KLabelset nextKLabelset;
 		
+		int [] appearances = new int[nLabels];
+		
 		do {
 			if(! phiBiased) {
 				//Add a randomly generated k-labelset if it did not exist
@@ -253,23 +255,30 @@ public class KLabelsetGenerator {
 			
 			if(! klabelsets.contains(nextKLabelset)) {
 				klabelsets.add(nextKLabelset);
+				for(int l : nextKLabelset.klabelset) {
+					appearances[l]++;
+				}
 			}
 		}while(klabelsets.size() < nLabelsets);
 		
-//		//Generate random k-labelsets
-//		if(! phiBiased) {
-//			do {
-//				//Add a randomly generated k-labelset if it did not exist
-//				nextKLabelset = randomKLabelset(this.minK, this.maxK);
-//				
-//				if(! klabelsets.contains(nextKLabelset)) {
-//					klabelsets.add(nextKLabelset);
-//				}
-//			}while(klabelsets.size() < nLabelsets);
-//		}
-//		else {
-//			
-//		}
+		for(int l=0; l<nLabels; l++) {
+			if(appearances[l] < 1) {
+				int selected=0;
+				do {
+					int r = randgen.choose(0, nLabelsets);
+					int r2 = randgen.choose(0, klabelsets.get(r).klabelset.size());
+					selected = klabelsets.get(r).klabelset.get(r2);
+					
+					if(appearances[selected] > 1) {
+						klabelsets.get(r).klabelset.remove(r2);
+						appearances[selected]--;
+						klabelsets.get(r).klabelset.add(l);
+						appearances[l]++;
+					}
+				}while(appearances[selected] <= 1);
+				
+			}
+		}
 		
 		return this.klabelsets;
 	}
