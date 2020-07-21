@@ -197,7 +197,7 @@ public class KLabelsetGenerator {
 		inactive.remove((Integer)r);
 		
 		//Add labels until desired size
-		Arrays.fill(weights, 0.0); //0.1
+		Arrays.fill(weights, 0.0001); //
 		do {
 			//Recalculate weights
 			for(Integer inLabel : inactive) {
@@ -218,12 +218,14 @@ public class KLabelsetGenerator {
 				r = utils.selectRandomlyWithWeights(weights);
 			}while(klabelset.contains(r));
 			
+			
+			
 			klabelset.add(r);
 			inactive.remove((Integer)r);
 		}while(klabelset.size() < k);
 		
 		Collections.sort(klabelset);
-		
+				
 		return new KLabelset(k, this.nLabels, klabelset);
 	}
 	
