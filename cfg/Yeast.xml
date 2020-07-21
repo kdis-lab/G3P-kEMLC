@@ -3,7 +3,6 @@
     <rand-gen-factory multi="true">
       <rand-gen-factory seed="10"/>
       <rand-gen-factory seed="20"/>
-      <rand-gen-factory seed="30"/>
     </rand-gen-factory>
 
     <population-size>50</population-size>
@@ -31,11 +30,6 @@
       <dataset>
         <train-dataset>data/Yeast/Yeast-train2.arff</train-dataset>
         <test-dataset>data/Yeast/Yeast-test2.arff</test-dataset>
-        <xml>data/Yeast/Yeast.xml</xml>
-      </dataset>
-      <dataset>
-        <train-dataset>data/Yeast/Yeast-train3.arff</train-dataset>
-        <test-dataset>data/Yeast/Yeast-test3.arff</test-dataset>
         <xml>data/Yeast/Yeast.xml</xml>
       </dataset>
     </dataset>	
