@@ -15,6 +15,11 @@ public class IndividualCreator {
 	 */
 	IRandGen randgen;
 	
+	/**
+	 * Constructor
+	 * 
+	 * @param randgen Random numbers generator
+	 */
 	public IndividualCreator(IRandGen randgen) {
 		this.randgen = randgen;
 	}
@@ -28,13 +33,14 @@ public class IndividualCreator {
 	}
 	
 	/**
-	 * Create an individual of given maximum depth
+	 * Create a tree individual of given maximum depth and maximum number of children in each node
 	 * 
 	 * @param nMax Max value for the leaves
 	 * @param maxDepth Maximum depth of the tree
+	 * @param maxChild Maximum number of children at each combination node
 	 * @return Individual as String
 	 */
-	public String create(int nMax, int maxDepth, int nChilds) {
+	public String create(int nMax, int maxDepth, int maxChild) {
 		//The individual at the beginning is the node 'S' and the end of individual ';'
 		String ind = "S;";
 		
@@ -49,17 +55,17 @@ public class IndividualCreator {
 			//If initial 'S' node, create a random number of child nodes 'C'.
 				//Random in [2, maxChild] range
 			case 'S':
-				ind = replace(ind, pos, childRandomSize(nChilds));
+				ind = replace(ind, pos, childRandomSize(maxChild));
 				break;
 			
 			//If a node 'C' is found, it is replaced by one of:
 			//	- Random number of child in [2, maxChild] range
 			//	- Random leaf
-			//If the current depth is equal than the max allowed depth, a random leaf is automatically included
+			//If the current depth is equal than the max allowed depth, only a random leaf is allowed
 			case 'C':
 				if(currDepth < maxDepth) {
 					if(randgen.coin()) {
-						ind = replace(ind, pos, childRandomSize(nChilds));
+						ind = replace(ind, pos, childRandomSize(maxChild));
 					}
 					else {
 						//Replace current 'C' by random leaf in [0, nMax) range

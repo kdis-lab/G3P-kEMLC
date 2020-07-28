@@ -54,7 +54,7 @@ public class Evaluator extends AbstractParallelEvaluator {
 	/**
 	 * Table with predictions of each classifier over fullTrainData
 	 */
-	Hashtable<String, Prediction> tablePredictions = new Hashtable<String, Prediction>();
+	Hashtable<String, Prediction> tablePredictions;
 	
 	/**
 	 * Indicates if confidences are used instead of bipartitions to combine predictions
@@ -106,7 +106,7 @@ public class Evaluator extends AbstractParallelEvaluator {
 	 * @param tablePredictions Table with predictions of each classifier over full train data
 	 */
 	public void setTablePredictions(Hashtable<String, Prediction> tablePredictions) {
-		this.tablePredictions = (Hashtable<String, Prediction>) tablePredictions;
+		this.tablePredictions = tablePredictions;
 	}
 	
 	/**
@@ -160,12 +160,10 @@ public class Evaluator extends AbstractParallelEvaluator {
 			//The fitness is lower (worse) as it cover less number of labels
 			//	In case of hipothetically selecting two negative fitness individuals in tournament, the one that cover more labels is selected
 			fitness = ((pred.labelIndices.size()*1.0) / fullTrainData.getNumLabels()) - 1;
-//			fitness = -1.0;
 		}
 		else {
-			//Calculate fitness (ExF) with the reduced predictions
+			//Calculate fitness (ExF and MaF) with the reduced predictions
 			fitness = beta*exF(pred, fullTrainData) + (1-beta)*maF(pred, fullTrainData);
-//			fitness = exF(pred, fullTrainData);
 		}
 		
 		//Set individual fitness

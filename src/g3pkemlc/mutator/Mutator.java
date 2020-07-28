@@ -25,14 +25,14 @@ public class Mutator extends StringTreeMutator {
 	protected transient String schema;
 
 	/**
-	 * Maximum value for leafs
+	 * Maximum value for leafs (number of classifiers in the pool)
 	 */
 	int nMax;
 	
 	/**
-	 * Number of childs of each node
+	 * Number of children of each node
 	 */
-	int nChilds;
+	int maxChildren;
 	
 	/**
 	 * Utils object for working with GP individuals
@@ -42,7 +42,7 @@ public class Mutator extends StringTreeMutator {
 	/**
 	 * Maximum allowed depth for the tree
 	 */
-	int maxTreeDepth;
+	int maxDepth;
 	
 	
 	/**
@@ -67,15 +67,15 @@ public class Mutator extends StringTreeMutator {
 
 	/**
 	 * Setter for the maximum tree depth
-	 * @param maxTreeDepth
+	 * @param maxTreeDepth Maximum tree depth
 	 */
 	public void setMaxTreeDepth(int maxTreeDepth) {
-		this.maxTreeDepth = maxTreeDepth;
+		this.maxDepth = maxTreeDepth;
 	}
 	
 	/**
-	 * Setter for the maximum value of leafs
-	 * @param nMax
+	 * Setter for the maximum value of leafs (number of classifiers in the pool)
+	 * @param nMax Maximum value for leafs
 	 */
 	public void setnMax(int nMax) {
 		this.nMax = nMax;
@@ -83,10 +83,10 @@ public class Mutator extends StringTreeMutator {
 	
 	/**
 	 * Setter for the number of children at each node
-	 * @param nChilds
+	 * @param maxChildren Max number of children at each node
 	 */
-	public void setnChilds(int nChilds) {
-		this.nChilds = nChilds;
+	public void setnChildren(int maxChildren) {
+		this.maxChildren = maxChildren;
 	}
 
 	/**
@@ -103,11 +103,10 @@ public class Mutator extends StringTreeMutator {
 	}
 	
 	/**
-	 * Cross individuals and obtains two new sons.
+	 * Mutate individual
 	 * 
-	 * @param ind1 First parent
-	 * @param ind2 Second parent
-	 * @return Array with two child individuals
+	 * @param ind Individual to mutate
+	 * @return Mutated individual
 	 */
 	public String mutate(String ind) {
 		boolean chooseLeaf = randgen.coin();
@@ -122,18 +121,18 @@ public class Mutator extends StringTreeMutator {
 		}
 		
 		//Calculate the allowed depth for the subtree to include in the current position
-		int allowedDepth = maxTreeDepth - utils.calculateNodeDepth(ind, subTree[0]);
+		int allowedDepth = maxDepth - utils.calculateNodeDepth(ind, subTree[0]);
 		String newSubtree;
 		
 		boolean replaceByLeaf = randgen.coin();
-		//If allowedDepth is 0, or if it was determined that the replace is a leaf, select just a random leaf
+		//If allowedDepth is 0, or if it was determined that the replacement is a leaf, select just a random leaf
 		if(allowedDepth == 0 || replaceByLeaf) {
 			newSubtree = String.valueOf(randgen.choose(0, nMax));
 		}
 		else {
 			//Create a new subtree of maximum allowedDepth to substitute the node
 			IndividualCreator creator = new IndividualCreator(randgen);
-			newSubtree = creator.create(nMax, allowedDepth, nChilds);
+			newSubtree = creator.create(nMax, allowedDepth, maxChildren);
 			
 			//Remove here the ";" indicating the end of the individual
 			newSubtree = newSubtree.substring(0, newSubtree.length()-1);

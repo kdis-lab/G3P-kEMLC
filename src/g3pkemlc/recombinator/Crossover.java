@@ -18,7 +18,7 @@ public class Crossover extends StringTreeRecombinator {
 	/**
 	 * Maximum allowed depth for the tree
 	 */
-	int maxTreeDepth;
+	int maxDepth;
 	
 	/**
 	 * Utils object for working with GP individuals
@@ -36,10 +36,10 @@ public class Crossover extends StringTreeRecombinator {
 	
 	/**
 	 * Setter for the maximum tree depth
-	 * @param maxTreeDepth
+	 * @param maxDepth  Max tree depth
 	 */
-	public void setMaxTreeDepth(int maxTreeDepth) {
-		this.maxTreeDepth = maxTreeDepth;
+	public void setMaxTreeDepth(int maxDepth) {
+		this.maxDepth = maxDepth;
 	}
 	
 	@Override
@@ -63,6 +63,8 @@ public class Crossover extends StringTreeRecombinator {
 		StringTreeIndividual p2 = (StringTreeIndividual) parentsBuffer.get(parentsCounter+1);
 		
 		//Add individuals to buffer
+		//	Each time the crossover is applied, only one individual is returned
+		//	So it is called twice, with individuals swapped
 		sonsBuffer.add(new StringTreeIndividual(crossInd(p1.getGenotype(), p2.getGenotype())));
 		sonsBuffer.add(new StringTreeIndividual(crossInd(p2.getGenotype(), p1.getGenotype())));
 	}
@@ -92,7 +94,7 @@ public class Crossover extends StringTreeRecombinator {
 		}
 		
 		//Calculate max depth allowed for subtree to select from the other ind
-		allowedDepth = maxTreeDepth - utils.calculateNodeDepth(ind1, subTree[0]);
+		allowedDepth = maxDepth - utils.calculateNodeDepth(ind1, subTree[0]);
 		if(allowedDepth < 0 ) {
 			System.out.println("The allowed depth is lower than 0.");
 			System.exit(-1);

@@ -81,7 +81,7 @@ public class DatasetTransformation {
 	/**
 	 * Get the index of labels in the genotype corresponding to the original dataset
 	 * 
-	 * @param originalDataset Original dataset
+	 * @param fullLabelIndices list of label indices in the original dataset
 	 * @param genotype Genotype describing labels to keep
 	 * @return Index of kept labels in original dataset
 	 */

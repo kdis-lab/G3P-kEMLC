@@ -20,6 +20,8 @@ import g3pkemlc.utils.KLabelsetGenerator;
 import g3pkemlc.utils.MulanUtils;
 import g3pkemlc.utils.TreeUtils;
 import g3pkemlc.utils.Utils;
+import g3pkemlc.utils.Utils.KMode;
+import mulan.classifier.MultiLabelLearner;
 import mulan.classifier.MultiLabelLearnerBase;
 import mulan.classifier.transformation.LabelPowerset2;
 import mulan.data.MultiLabelInstances;
@@ -47,132 +49,150 @@ public class Alg extends SGE {
 	private static final long serialVersionUID = -790335501425435317L;
 
 	/**
-	 * Betters selector
+	 * Betters selector.
 	 */
 	BettersSelector bselector = new BettersSelector(this);
 	
 	/**
-	 * Max number of children at each node
+	 * Max number of children at each node.
+	 * By default, it is set to 7
 	 */
 	int maxChildren;
 	
 	/**
-	 * Max depth of the tree
+	 * Max depth of the tree.
+	 * By default, it is set to 3.
 	 */
 	int maxDepth;
 	
 	/**
-	 * Minimum size of the k-labelsets
+	 * Minimum size of the k-labelsets.
+	 * If not set, it will be 3.
 	 */
 	int minK;
 	
 	/**
-	 * Maximum size of the k-labelsets
+	 * Maximum size of the k-labelsets.
+	 * If not set, it will be numLabels/2.
 	 */
 	int maxK;
 	
 	/**
-	 * Full training dataset
+	 * Mode of k selection for each k-labelset.
+	 * By default it is gaussian.
+	 */
+	KMode kMode;
+	
+	/**
+	 * Expected average number of votes per label in the pool
+	 * By default, set to 20.
+	 */
+	int v;
+	
+	/**
+	 * Full training dataset.
 	 */
 	MultiLabelInstances fullTrainData;
 	
 	/**
-	 * Current sampled training data for a given multi-label classifier
+	 * Current sampled training data for a given multi-label classifier.
 	 */
 	MultiLabelInstances currentTrainData;
 	
 	/**
-	 * Ratio of instances sampled at each train data
+	 * Ratio of instances sampled at each train data.
+	 * By default, it is 0.75 (75% of instances for each classifier).
 	 */
 	float sampleRatio;
 	
 	/**
-	 * Test dataset
+	 * Test dataset.
 	 */
 	MultiLabelInstances testData;
 	
 	/**
-	 * Number of different MLC
+	 * Number of different MLC in the pool.
+	 * It varies depending on the expected average number of votes in the initial pool.
 	 */
 	int nMLC;
 	
 	/**
-	 * Utils
+	 * Utils.
 	 */
 	Utils utils;
 
 	/**
-	 * Table with predictions of each classifier
+	 * Table with predictions of each classifier.
 	 */
 	Hashtable<String, Prediction> tablePredictions;
 	
 	/**
-	 * Random numbers generator
+	 * Random numbers generator.
 	 */
 	IRandGen randgen;
 	
 	/**
-	 * Multi-label base classifier
-	 */
-	MultiLabelLearnerBase learner;
-	
-	/**
-	 * Seed for random numbers
+	 * Seed for random numbers.
 	 */
 	int seed;
 	
 	/**
-	 * Use confidences or bipartitions in combining predictions
+	 * Use confidences or bipartitions in combining predictions.
+	 * By default it is false, so each classifier as well as combination nodes
+	 * 	consider bipartitions instead of confidences.
 	 */
 	boolean useConfidences;
 	
 	/**
-	 * Array of k-labelsets
+	 * Array of k-labelsets built in the pool.
 	 */
 	ArrayList<KLabelset> klabelsets;
 	
 	/**
-	 * Final ensemble
+	 * Final ensemble.
 	 */
 	EMLC ensemble;
 	
 	/**
-	 * Lock for parallel critical code
+	 * Lock for parallel critical code.
 	 */
 	Lock lock = new ReentrantLock();
 	
 	/**
-	 * Beta for fitness
+	 * Beta for fitness.
+	 * By default it is 0.5, i.e., same weight to each metric in fitness.
 	 */
 	float beta;
 	
 	/**
-	 * Stop condition: Number of iterations without improvement of the best
+	 * Stop condition: Number of iterations without improvement of the best.
+	 * By default it is set to 10.
 	 */
 	int nItersWithoutImprovement = 10;
 	
 	/**
-	 * Best fitness so fat
+	 * Best fitness so far.
 	 */
 	float bestFitness = -1;
 	
 	/**
-	 * Iteration in which best fitness was achieved
+	 * Iteration in which best fitness was achieved.
 	 */
 	int lastIterBestFitness = 0;
 	
 	/**
-	 * Best average fitness value
+	 * Best average fitness value. Used to modify operators probabilities.
 	 */
 	float bestAvgFitness = 0;
 	
 	/**
-	 * Indicate if individuals are created biased by phi-value of labels
+	 * Indicate if individuals are created biased by phi-value of labels.
+	 * By default, it is true.
 	 */
-	boolean phiBased = true;
+	boolean phiBasedPool = true;
 	
 	/**
-	 * Getter for test data
+	 * Getter for test data.
 	 * 
 	 * @return Test data
 	 */
@@ -181,7 +201,7 @@ public class Alg extends SGE {
 	}
 	
 	/**
-	 * Getter for the seed
+	 * Getter for the seed.
 	 * 
 	 * @return Seed
  	 */
@@ -190,7 +210,7 @@ public class Alg extends SGE {
 	}
 	
 	/**
-	 * Getter for the ensemble
+	 * Getter for the ensemble.
 	 * 
 	 * @return Ensemble
 	 */
@@ -199,7 +219,7 @@ public class Alg extends SGE {
 	}
 	
 	/**
-	 * Configure some default aspects and parameters of EME to make the configuration easier
+	 * Configure some default aspects and parameters of EME to make the configuration easier.
 	 * 
 	 * @param configuration Configuration
 	 */
@@ -235,8 +255,15 @@ public class Alg extends SGE {
 		if(! configuration.containsKey("recombinator[@type]")) {
 			configuration.addProperty("recombinator[@type]", "g3pkemlc.recombinator.Crossover");
 		}
+		if(! configuration.containsKey("recombinator[@rec-prob]")) {
+			configuration.addProperty("recombinator[@rec-prob]", "0.5");
+		}
+		
 		if(! configuration.containsKey("mutator[@type]")) {
 			configuration.addProperty("mutator[@type]", "g3pkemlc.mutator.Mutator");
+		}
+		if(! configuration.containsKey("mutator[@mut-prob]")) {
+			configuration.addProperty("mutator[@mut-prob]", "0.5");
 		}
 		
 		//Use confidences (only if not provided)
@@ -247,6 +274,47 @@ public class Alg extends SGE {
 		//Listener type (only if not provided)
 		if(! configuration.containsKey("listener[@type]")) {
 			configuration.addProperty("listener[@type]", "g3pkemlc.Listener");
+		}
+		
+		//Average votes per label in initial pool
+		if(! configuration.containsKey("v")) {
+			configuration.addProperty("v", "20");
+		}
+		
+		//k
+		if(! configuration.containsKey("min-k")) {
+			configuration.addProperty("min-k", "3");
+		}
+		if(! configuration.containsKey("max-k")) {
+			configuration.addProperty("max-k", "-1");
+		}
+		
+		//k-mode for selecting size of each k-labelset
+		if(! configuration.containsKey("k-mode")) {
+			configuration.addProperty("k-mode", "gaussian");
+		}
+		
+		//Max children and max depth for tree
+		if(! configuration.containsKey("max-depth")) {
+			configuration.addProperty("max-depth", "3");
+		}
+		if(! configuration.containsKey("max-children")) {
+			configuration.addProperty("max-children", "7");
+		}
+		
+		//Sampling ratio
+		if(! configuration.containsKey("sampling-ratio")) {
+			configuration.addProperty("sampling-ratio", "0.75");
+		}
+		
+		//Phi-based initial k-labelsets
+		if(! configuration.containsKey("phi-based-klabelsets")) {
+			configuration.addProperty("phi-based-klabelsets", "true");
+		}
+		
+		//Beta for fitness
+		if(! configuration.containsKey("beta")) {
+			configuration.addProperty("beta", "0.5");
 		}
 	}
 	
@@ -259,16 +327,14 @@ public class Alg extends SGE {
 		randgen = randGenFactory.createRandGen();
 		utils = new Utils(randgen);
 		
-		
 		//Initialize table for predictions
 		tablePredictions = new Hashtable<String, Prediction>();
 		
-		//Get datasets
-		String datasetTrainFileName = configuration.getString("dataset.train-dataset");
-		String datasetTestFileName = configuration.getString("dataset.test-dataset");
-		String datasetXMLFileName = configuration.getString("dataset.xml");
 		
 		sampleRatio = configuration.getFloat("sampling-ratio");
+		if(sampleRatio <= 0 || sampleRatio > 1) {
+			System.out.println("Sample ratio must be a value in the (0, 1] range.");
+		}
 		
 		minK = configuration.getInt("min-k");
 		maxK = configuration.getInt("max-k");
@@ -278,7 +344,24 @@ public class Alg extends SGE {
 		useConfidences = configuration.getBoolean("use-confidences");
 		beta = configuration.getFloat("beta");
 		
-		phiBased = configuration.getBoolean("phi-based-individuals");
+		phiBasedPool = configuration.getBoolean("phi-based-klabelsets");
+		
+		String kModeString = configuration.getString("k-mode");
+		if(kModeString.equalsIgnoreCase("uniform")) {
+			kMode = KMode.uniform;
+		}
+		else if(kModeString.equalsIgnoreCase("gaussian")) {
+			kMode = KMode.gaussian;
+		}
+		else {
+			System.out.println(kModeString + " is not a valid value for k-mode.");
+			System.exit(-1);
+		}
+		
+		//Get datasets
+		String datasetTrainFileName = configuration.getString("dataset.train-dataset");
+		String datasetTestFileName = configuration.getString("dataset.test-dataset");
+		String datasetXMLFileName = configuration.getString("dataset.xml");
 		
 		fullTrainData = null;
 		currentTrainData = null;
@@ -287,9 +370,23 @@ public class Alg extends SGE {
 			fullTrainData = new MultiLabelInstances(datasetTrainFileName, datasetXMLFileName);
 			testData = new MultiLabelInstances(datasetTestFileName, datasetXMLFileName);
 			
-			float v = configuration.getFloat("v");
-			nMLC = (int) Math.round((v * fullTrainData.getNumLabels()) / ((minK + maxK) / 2.0));
-
+			int nLabels = fullTrainData.getNumLabels();
+			if(maxK < 0) {
+				maxK = (int)Math.floor(nLabels*0.5);
+			}
+			
+			if(minK < 2 || minK > maxK || minK > nLabels) {
+				System.out.println("Incorrect value for minK.");
+			}
+			if(maxK < minK || maxK > nLabels) {
+				System.out.println("Incorrect value for maxK.");
+			}
+			
+			v = configuration.getInt("v");
+			if(v < 1) {
+				System.out.println("Incorrect value for v.");
+			}
+			
 			//Create folder for classifiers if it does not exist
 			File f = new File("mlc/");
 			if (!f.exists()) {
@@ -297,12 +394,14 @@ public class Alg extends SGE {
 			}
 			
 			//Generate k-labelsets
-			KLabelsetGenerator klabelsetGen = new KLabelsetGenerator(minK, maxK, fullTrainData.getNumLabels(), nMLC);
+			KLabelsetGenerator klabelsetGen = new KLabelsetGenerator(minK, maxK, nLabels, kMode);
 			klabelsetGen.setRandgen(randgen);
-			if(phiBased) {
+			if(phiBasedPool) {
+				//Get phi matrix
 				Statistics stat = new Statistics();
 				double [][] phi = stat.calculatePhi(fullTrainData);
 				
+				//Change NaNs by 0
 				for(int i=0; i<phi.length; i++) {
 					for(int j=0; j<phi[0].length; j++) {
 						if(Double.isNaN(phi[i][j])) {
@@ -317,8 +416,14 @@ public class Alg extends SGE {
 				klabelsetGen.setPhiBiased(false, null);
 			}
 			
+			//Generate k-labelsets
+			klabelsets = klabelsetGen.generateKLabelsets(v);
 			
-			klabelsets = klabelsetGen.generateKLabelsets();
+			//Get number of classifiers finally created
+			nMLC = klabelsets.size();
+
+			//Print the k-labelsets
+			System.out.println("nMLC: " + nMLC);
 			klabelsetGen.printKLabelsets();
 			
 			//Set number of threads
@@ -348,8 +453,8 @@ public class Alg extends SGE {
 		((StringTreeCreator)provider).setMaxDepth(maxDepth);
 		((StringTreeCreator)provider).setnMax(nMLC);
 		
+		((Mutator)mutator.getDecorated()).setnChildren(maxChildren);
 		((Mutator)mutator.getDecorated()).setMaxTreeDepth(maxDepth);
-		((Mutator)mutator.getDecorated()).setnChilds(maxChildren);
 		((Mutator)mutator.getDecorated()).setnMax(nMLC);
 		
 		((Crossover)recombinator.getDecorated()).setMaxTreeDepth(maxDepth);
@@ -407,16 +512,13 @@ public class Alg extends SGE {
 			System.out.println("Finished in generation " + generation);
 			
 			//Get base learner
-			learner = new LabelPowerset2(new J48());
+			MultiLabelLearner learner = new LabelPowerset2(new J48());
 			((LabelPowerset2)learner).setSeed(seed);
 			
 			//Generate ensemble object
 			ensemble = new EMLC(learner, klabelsets, bestGenotype, useConfidences);
 			
 			System.out.println("Votes per label: " + Arrays.toString(TreeUtils.votesPerLabel(bestGenotype, klabelsets, fullTrainData.getNumLabels())));
-			
-			//Print the leaves; i.e., different classifiers used in the ensemble
-			//System.out.println(utils.getLeaves(bestGenotype));
 			
 			try {
 				//Build the ensemble
@@ -461,7 +563,6 @@ public class Alg extends SGE {
 		tablePredictions = null;
 		klabelsets = null;
 		testData = null;
-		learner = null;
 		ensemble = null;
 		System.gc();
 	}

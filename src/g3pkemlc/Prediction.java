@@ -116,7 +116,7 @@ public class Prediction {
 	 * 
 	 * @param instance Instance to transform prediction into bipartition
 	 * @param threshold Threshold to determine relevant and irrelevant labels
-	 * @return Bipartitions
+	 * @return Bipartitions boolean matrix with bipartitions
 	 */
 	public boolean[] getBipartition(int instance, float threshold) {
 		boolean[] bipartition = new boolean[labelIndices.size()];
@@ -177,7 +177,7 @@ public class Prediction {
 					newLabelVotes[l] = this.labelVotes[thisLabelPos] + other.labelVotes[otherLabelPos];
 				}
 			}
-			//If only *this* contains the label; just copy this predictions
+			//If only *this* contains the label; just copy *this* predictions
 			else if(this.labelIndices.contains(currLabelIndex)) {
 				int thisLabelPos = this.labelIndices.indexOf(currLabelIndex);
 				for(int i=0; i<nInstances; i++) {
@@ -185,7 +185,7 @@ public class Prediction {
 					newLabelVotes[l] = this.labelVotes[thisLabelPos];
 				}
 			}
-			//If only *other* contains the label; just copy other predictions
+			//If only *other* contains the label; just copy *other* predictions
 			else if(other.labelIndices.contains(currLabelIndex)) {
 				int otherLabelPos = other.labelIndices.indexOf(currLabelIndex);
 				for(int i=0; i<nInstances; i++) {
@@ -204,18 +204,7 @@ public class Prediction {
 		this.labelVotes = newLabelVotes.clone();
 		this.pred = newPred.clone();
 	}
-	
-	/**
-	 * Add a prediction to the current one
-	 * This method is deprecated, going to be deleted.
-	 * 	I still need to see where I'm using it and solve it
-	 * 
-	 * @param other Prediction to add to the current one
-	 */
-	public void addPrediction(int[] labelIndices, float[][] pred) {
-		this.addPrediction(new Prediction(labelIndices, pred));
-	}
-		
+
 	/**
 	 * Divide the current prediction by the number of votes of each label and apply the threshold.
 	 * If each prediction is lower than the thresohld, it is negative; and positive otherwise.

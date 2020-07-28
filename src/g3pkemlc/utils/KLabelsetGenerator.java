@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Locale;
 
+import g3pkemlc.utils.Utils.KMode;
 import net.sf.jclec.util.random.IRandGen;
 
 /**
@@ -19,22 +20,22 @@ public class KLabelsetGenerator {
 	/**
 	 * Min size of the k-labelsets
 	 */
-	int minK;
+	public int minK;
 	
 	/**
 	 * Max size of the k-labelsets
 	 */
-	int maxK;
+	public int maxK;
 	
 	/**
 	 * Number of labels in the dataset
 	 */
-	int nLabels;
+	public int nLabels;
 	
 	/**
-	 * Number of k-labelsets to create
+	 * Number of k-labelsets created
 	 */
-	int nLabelsets;
+	public int nLabelsets;
 	
 	/**
 	 * True if the generation of the k-labelsets is biased by the relationship among labels.
@@ -46,12 +47,7 @@ public class KLabelsetGenerator {
 	 * Phi matrix of correlation among labels
 	 */
 	double[][] phi;
-	
-	/**
-	 * Frequency of labels in the dataset. Used if freqBias is true.
-	 */
-	double[] freq;
-	
+
 	/**
 	 * Set of selected k-labelsets
 	 */
@@ -68,6 +64,12 @@ public class KLabelsetGenerator {
 	Utils utils = new Utils();
 	
 	/**
+	 * Mode of k selection for each k-labelset.
+	 * By default it is gaussian.
+	 */
+	KMode kMode;
+	
+	/**
 	 * Empty constructor
 	 */
 	public KLabelsetGenerator() {
@@ -76,7 +78,6 @@ public class KLabelsetGenerator {
 		this.nLabels = 0;
 		this.nLabelsets = 0;
 		this.phiBiased = false;
-		this.freq = null;
 		this.klabelsets = null;
 	}
 	
@@ -87,32 +88,14 @@ public class KLabelsetGenerator {
 	 * @param maxK Maximum allowed size of k-labelsets
 	 * @param nLabels Number of labels in the dataset
 	 */
-	public KLabelsetGenerator(int minK, int maxK, int nLabels) {
+	public KLabelsetGenerator(int minK, int maxK, int nLabels, KMode kMode) {
 		this.minK = minK;
 		this.maxK = maxK;
 		this.nLabels = nLabels;
+		this.kMode = kMode;
 		this.nLabelsets = 0;
 		this.phiBiased = false;
-		this.freq = null;
 		this.klabelsets = new ArrayList<KLabelset>();
-	}
-	
-	/**
-	 * Constructor
-	 * 
-	 * @param minK Minimum allowed size of k-labelsets
-	 * @param maxK Maximum allowed size of k-labelsets
-	 * @param nLabels Number of labels in the dataset
-	 * @param nLabelsets Number of labelsets to generate
-	 */
-	public KLabelsetGenerator(int minK, int maxK, int nLabels, int nLabelsets) {
-		this.minK = minK;
-		this.maxK = maxK;
-		this.nLabels = nLabels;
-		this.nLabelsets = nLabelsets;
-		this.phiBiased = false;
-		this.freq = null;
-		this.klabelsets = new ArrayList<KLabelset>(nLabelsets);
 	}
 	
 	/**
@@ -123,15 +106,6 @@ public class KLabelsetGenerator {
 	public void setPhiBiased(boolean phiBiased, double[][] phi) {
 		this.phiBiased = phiBiased;
 		this.phi = phi;
-	}
-	
-	/**
-	 * Setter for the frequency
-	 * 
-	 * @param freq Frequency of each label in the dataset
-	 */
-	public void setFreq(double[] freq) {
-		this.freq = freq;
 	}
 	
 	/**
@@ -166,18 +140,8 @@ public class KLabelsetGenerator {
 	}
 	
 	/**
-	 * Generate a random k-labelset being k in the range [minK, maxK]
-	 * 
-	 * @param minK Minimum allowed value for k
-	 * @param maxK Maximum allowed value for k
-	 * @return Randomly generated k-labelset
-	 */
-	private KLabelset randomKLabelset(int minK, int maxK) {
-		return randomKLabelset(randgen.choose(minK, maxK+1));
-	}
-	
-	/**
 	 * Generate k-labelset biased by phi correlation among labels
+	 * Also considers the appearances in the initial pool so far
 	 * 
 	 * @param k Size of the labelset to generate
 	 * @return Phi-biased generated k-labelset
@@ -185,7 +149,10 @@ public class KLabelsetGenerator {
 	private KLabelset phiBasedKLabelset(int k, int[] appearances) {
 		double[] weights = new double[nLabels];
 		
+		//Labels selected for the k-labelset
 		ArrayList<Integer> klabelset = new ArrayList<Integer>(k);
+		
+		//Non-selected labels. Include all labels at the beginning
 		ArrayList<Integer> inactive = new ArrayList<Integer>(nLabels);
 		for(int i=0; i<nLabels; i++) {
 			inactive.add(i);
@@ -196,114 +163,157 @@ public class KLabelsetGenerator {
 		klabelset.add(r);
 		inactive.remove((Integer)r);
 		
-		//Add labels until desired size
-		Arrays.fill(weights, 0.0001); //
+		//Select the rest of labels
 		do {
-			//Recalculate weights
+			//Reset weights
+			Arrays.fill(weights, 0);
+			
+			//Recalculate weights for each inactive label
 			for(Integer inLabel : inactive) {
+				//Fill positions with initial weight to avoid 0 weights
+				weights[inLabel] = 1E-3;
+				
+				//Add phi value (absolute value) with each activel abel
 				for(Integer acLabel : klabelset) {
 					weights[inLabel] += Math.abs(phi[inLabel][acLabel]);
 				}
-			}
-			
-			float log = 0;
-			for(int i=0; i<nLabels; i++) {
-				log = (float) Math.log10(appearances[i]+1);
-				if(log < 1) {
-					weights[i] += (1-log);
-				}
+				
+				//Multiply weights given the appearances in the initial pool
+				//	So labels with very low appearance have more chance to be selected
+				//	But still considering the relationship
+				//It follows an exponential function, so given its appearances is multiplied by
+				//	0:  2.72
+				//	1:  1.65
+				//	2:  1.4
+				//	...
+				//	5:  1.18
+				//	10: 1.10
+				//	20: 1.05
+				weights[inLabel] *= Math.exp(1 / (1+appearances[inLabel]));
 			}
 			
 			do {
+				//Select a random label based on calculated weights
 				r = utils.selectRandomlyWithWeights(weights);
 			}while(klabelset.contains(r));
-			
-			
-			
+
 			klabelset.add(r);
 			inactive.remove((Integer)r);
 		}while(klabelset.size() < k);
 		
+		//Sort the klabelset
 		Collections.sort(klabelset);
 				
 		return new KLabelset(k, this.nLabels, klabelset);
 	}
 	
 	/**
-	 * Generate a phi-based k-labelset being k in the range [minK, maxK]
+	 * Generate an array of k-labelsets
+	 * The size of each k-labelset is selected in the range [minK, maxK] (uniformly or gaussian-based)
+	 * k-labelsets are created until v average votes for each label are reached
 	 * 
-	 * @param minK Minimum allowed value for k
-	 * @param maxK Maximum allowed value for k
-	 * @return Phi-based generated k-labelset
-	 */
-	private KLabelset phiBasedKLabelset(int minK, int maxK, int [] appearances) {
-		return phiBasedKLabelset(randgen.choose(minK, maxK+1), appearances);
-	}
-	
-	/**
-	 * Generate an array of nLabelsets k-labelsets
-	 * The size of each k-labelset is randomly selected in the range [minK, maxK]
-	 * 
-	 * @param nLabelsets Number of KLabelsets to generate
+	 * @param v Average number of votes for each label
 	 * @return Array of KLabelsets
 	 */
-	public ArrayList<KLabelset> generateKLabelsets(int nLabelsets){
+	public ArrayList<KLabelset> generateKLabelsets(int v){		
 		//Clear k-labelsets array
 		this.klabelsets = new ArrayList<KLabelset>(nLabelsets);
-		KLabelset nextKLabelset;
 		
+		
+		//Current number of votes in total
+		int currentVotes = 0;
+		
+		//Expected number of votes in the array of k-labelset
+		int expectedVotes = v*nLabels;
+		
+		//Appearances of each label in the initial pool so far
 		int [] appearances = new int[nLabels];
 		
+		//Next k-labelset to include
+		KLabelset nextKLabelset;
+		
+		//Value of k for the current k-labelset
+		int currentK = 0;
+		
+		//Sigma for selecting based on gaussian
+		double sigma, r;
+
 		do {
-			if(! phiBiased) {
-				//Add a randomly generated k-labelset if it did not exist
-				nextKLabelset = randomKLabelset(this.minK, this.maxK);
+			if(kMode == KMode.uniform) {
+				currentK = randgen.choose(minK, maxK+1);
+			}
+			else if(kMode == KMode.gaussian){
+				//98.7% of random numbers will be in the range [minK, maxK]
+				sigma = (maxK-minK)/2.5;
+				
+				//Get random value based on a gaussian with mean=0
+				r = randgen.gaussian(sigma);
+				
+				//Calculate absolute value and add the minK value (so it is as a gaussian with mean=minK and only right part
+				currentK = (int) Math.floor(Math.abs(r)) + minK;
+				
+				//Fix if the selected k is lower than minK or greater than maxK
+				if(currentK < minK) {
+					currentK = minK;
+				}
+				else if (currentK > maxK){
+					currentK = maxK;
+				}
 			}
 			else {
-				nextKLabelset = phiBasedKLabelset(this.minK, this.maxK, appearances);
+				System.out.println("Error. Invalid kMode.");
+				System.exit(0);
+			}
+
+			//Select k-labelset (phi-biased or randomly)
+			if(phiBiased) {
+				nextKLabelset = phiBasedKLabelset(currentK, appearances);
+			}
+			else {
+				//Add a randomly generated k-labelset if it did not exist
+				nextKLabelset = randomKLabelset(currentK);
 			}
 			
+			//Add if it is new
 			if(! klabelsets.contains(nextKLabelset)) {
 				klabelsets.add(nextKLabelset);
+				currentVotes += nextKLabelset.klabelset.size();
 				for(int l : nextKLabelset.klabelset) {
 					appearances[l]++;
 				}
 			}
-		}while(klabelsets.size() < nLabelsets);
+		//Add k-labelsets until desired size
+		}while(currentVotes <= (expectedVotes - maxK/2));
 		
+		nLabelsets = klabelsets.size();
+		
+		int r1, r2;
 		for(int l=0; l<nLabels; l++) {
+			//If any label does not appear, replace it by other
 			if(appearances[l] < 1) {
 				int selected=0;
 				do {
-					int r = randgen.choose(0, nLabelsets);
-					int r2 = randgen.choose(0, klabelsets.get(r).klabelset.size());
-					selected = klabelsets.get(r).klabelset.get(r2);
+					//Select a random labelset
+					r1 = randgen.choose(0, nLabelsets);
+					
+					//Select a random label in the labelset
+					r2 = randgen.choose(0, klabelsets.get(r1).klabelset.size());
+					
+					//Selected label
+					selected = klabelsets.get(r1).klabelset.get(r2);
 					
 					if(appearances[selected] > 1) {
-						klabelsets.get(r).klabelset.remove(r2);
+						klabelsets.get(r1).klabelset.remove(r2);
 						appearances[selected]--;
-						klabelsets.get(r).klabelset.add(l);
+						klabelsets.get(r1).klabelset.add(l);
 						appearances[l]++;
 					}
-				}while(appearances[selected] <= 1);
+				}while(appearances[selected] < 1);
 				
 			}
 		}
 		
 		return this.klabelsets;
-	}
-	
-	/**
-	 * Generate k-labelsets
-	 * 
-	 * @return List of k-labelsets
-	 */
-	public ArrayList<KLabelset> generateKLabelsets(){
-		if(this.nLabelsets > 0) {
-			return generateKLabelsets(this.nLabelsets);
-		}
-		
-		return null;
 	}
 	
 	/**

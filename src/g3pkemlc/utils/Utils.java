@@ -67,6 +67,16 @@ public class Utils {
 	}
 	
 	/**
+	 * Modes to select the size of each k-labelset
+	 * 	uniform: the probability is the same for each value of k in [minK, maxK]
+	 * 	gaussian: the probability of selecting larger k-labelsets decreases as a gaussian
+	 */
+	public enum KMode {
+		uniform,
+		gaussian
+	}
+	
+	/**
 	 * Constructor with random numbers generator
 	 * 
 	 * @param rand Random numbers generator
@@ -512,6 +522,13 @@ public class Utils {
 		return tempFile.exists();
 	}
 	
+	/**
+	 * Select an index of the array, where the probability is biased by the array of weights
+	 * There are no restrictions on weights, they don't need to sum 1 all
+	 * 
+	 * @param simpleWeights Array with weights
+	 * @return Randomly selected index
+	 */
 	public int selectRandomlyWithWeights(double [] simpleWeights) {
 		double sumW = Arrays.stream(simpleWeights).sum();
 		
@@ -529,6 +546,12 @@ public class Utils {
 		return -1;
 	}
 	
+	/**
+	 * Transform double array to float array
+	 * 
+	 * @param array Array of doubles
+	 * @return Array of floats
+	 */
 	public float[] doublesToFloat(double[] array) {
         float[] inFloatForm = new float[array.length];
         for (int i = 0; i < array.length; i++) {

@@ -73,6 +73,11 @@ public class EMLC extends MultiLabelMetaLearner {
 	int[] labelIndices;
 	
 	/**
+	 * Threshold for prediction
+	 */
+	float threshold = (float) 0.5;
+	
+	/**
 	 * Constructor
 	 * 
 	 * @param baseLearner Multi-label base learner
@@ -96,9 +101,10 @@ public class EMLC extends MultiLabelMetaLearner {
 	}	
 	
 	/**
-	 * Constructor with genotype and useConfidences
+	 * Constructor with genotype, k-labelsets and useConfidences
 	 * 
 	 * @param baseLearner Multi-label base learner
+	 * @param klabelsets k-labelsets for the initial pool
 	 * @param genotype Genotype of the individual tree
 	 * @param useConfidences true if confindences are used to combine predictions, false otherwise
 	 */
@@ -108,8 +114,17 @@ public class EMLC extends MultiLabelMetaLearner {
 		this.genotype = genotype;
 		this.leaves = utils.getLeaves(genotype);
 		this.useConfidences = useConfidences;
-	}	
-
+	}
+	
+	/**
+	 * Setter for threshold
+	 * 
+	 * @param threshold Threshold for bipartition prediction
+	 */
+	public void setThreshold(float threshold) {
+		this.threshold = threshold;
+	}
+	
 	/**
 	 * Reset seed for each member
 	 */
@@ -124,6 +139,7 @@ public class EMLC extends MultiLabelMetaLearner {
 		learners = new Hashtable<String, MultiLabelLearnerBase>(leaves.size());
 		
 		//Load each learner from hard disk
+		//	They were built when the initial pool was created
 		for(int i=0; i<leaves.size(); i++) {
 			learners.put(String.valueOf(leaves.get(i)), (MultiLabelLearnerBase) utils.loadObject("mlc/classifier"+leaves.get(i)+".mlc"));
 		}
@@ -135,12 +151,13 @@ public class EMLC extends MultiLabelMetaLearner {
 	@Override
 	protected MultiLabelOutput makePredictionInternal(Instance instance) throws Exception, InvalidDataException {
 		//Get final prediction by reducing the tree
+		//	Returns a matrix of predictions; get only the first row
 		float [] confs = reduce(genotype, instance).pred[0];
 		
 		//Transform to multi-label output
 		boolean[] bip = new boolean[numLabels];
 		for(int i=0; i<numLabels; i++) {
-			if(confs[i] >= 0.5) {
+			if(confs[i] >= threshold) {
 				bip[i] = true;
 			}
 			else {
@@ -160,12 +177,14 @@ public class EMLC extends MultiLabelMetaLearner {
 	 */
 	public Prediction reduce(String ind, Instance instance) {
 		//Match two or more leaves (numer or _number) between parenthesis
+		//	Only number means a classifier from the pool
+		//	_number means a previous combination of nodes
 		Pattern pattern = Pattern.compile("\\((_?\\d+ )+_?\\d+\\)");
 		Matcher m = pattern.matcher(ind);
 		
 		//count to add predictions of combined nodes into the table
 		int count = 0;
-		Prediction pred = new Prediction(1); //(1, numLabels)
+		Prediction pred = new Prediction(1);
 		
 		while(m.find()) {
 			//Combine the predictions of current nodes
@@ -193,7 +212,7 @@ public class EMLC extends MultiLabelMetaLearner {
 	 * @return Combined prediction
 	 */
 	protected Prediction combine(String nodes, Instance instance){
-		Prediction pred = new Prediction(1); //null; //new Prediction(1); //(1, numLabels)
+		Prediction pred = new Prediction(1);
 		
 		Pattern pattern = Pattern.compile("\\d+");
 		Matcher m;
@@ -220,16 +239,16 @@ public class EMLC extends MultiLabelMetaLearner {
 			}
 			else {
 				//Add to the current prediction, the prediction of the corresponding classifier
-				pred.addPrediction(dt.getOriginalLabelIndices(labelIndices, klabelsets.get(n).getKlabelset()), getPredictions(learners.get(String.valueOf(n)), instance));
+				pred.addPrediction(new Prediction(dt.getOriginalLabelIndices(labelIndices, klabelsets.get(n).getKlabelset()), getPredictions(learners.get(String.valueOf(n)), instance)));
 			}
 		}
 
-		//Divide prediction by the number of learners and apply threshold
+		//Divide prediction by the number of learners and apply threshold (in case)
 		if(useConfidences) {
 			pred.divide();
 		}
 		else {
-			pred.divideAndThresholdPrediction((float)0.5);
+			pred.divideAndThresholdPrediction(threshold);
 		}
 		
 		return pred;
@@ -262,7 +281,6 @@ public class EMLC extends MultiLabelMetaLearner {
 	}
 	
 	
-
 	@Override
 	public TechnicalInformation getTechnicalInformation() {
 		// TODO Auto-generated method stub

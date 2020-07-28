@@ -21,7 +21,7 @@ public class KLabelset {
 	int nLabels;
 	
 	/**
-	 * k-labelset
+	 * k-labelset (list of labels)
 	 */
 	ArrayList<Integer> klabelset;
 	
