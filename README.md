@@ -5,7 +5,7 @@ Given the use of G3P, a tree-shaped ensemble is obtained, where at each node of 
 Each of the base classifiers is focused on a subset of the labels of size _k_ (a.k.a. _k_-labelset). Unlike in other EMLCs, G3P-kEMLC is able to deal with base classifiers focused on _k_-labelsets of different size.
 More information about this algorithm will be provided soon.
 
-In this repository we provide the code of G3P-kEMLC, distributed under the GPLv3 License. G3P-kEMLC has been implemented using JCLEC [[Ven08]](#Ven08), Mulan [[Tso11]](#Tso11), and Weka [[Hal09]](#Hal09)  libraries. Besides, the latest release [(v 1.1)](https://github.com/i02momuj/EAGLET/releases/tag/v1.1) provides the executable jar to execute G3P-kEMLC.
+In this repository we provide the code of G3P-kEMLC, distributed under the GPLv3 License. G3P-kEMLC has been implemented using JCLEC [[Ven08]](#Ven08), Mulan [[Tso11]](#Tso11), and Weka [[Hal09]](#Hal09)  libraries. Besides, the latest release [(v 2.0)](https://github.com/kdis-lab/G3P-kEMLC/releases/tag/v2.0) provides the executable jar to execute G3P-kEMLC.
 
 To execute G3P-kEMLC, the following command have to be executed:
 ```sh
