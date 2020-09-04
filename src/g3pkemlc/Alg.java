@@ -192,6 +192,11 @@ public class Alg extends SGE {
 	boolean phiBasedPool = true;
 	
 	/**
+	 * Generator of k-labelsets for the pool
+	 */
+	KLabelsetGenerator klabelsetGen;
+	
+	/**
 	 * Getter for test data.
 	 * 
 	 * @return Test data
@@ -394,7 +399,7 @@ public class Alg extends SGE {
 			}
 			
 			//Generate k-labelsets
-			KLabelsetGenerator klabelsetGen = new KLabelsetGenerator(minK, maxK, nLabels, kMode);
+			klabelsetGen = new KLabelsetGenerator(minK, maxK, nLabels, kMode);
 			klabelsetGen.setRandgen(randgen);
 			if(phiBasedPool) {
 				//Get phi matrix
@@ -425,7 +430,7 @@ public class Alg extends SGE {
 			//Print the k-labelsets
 			System.out.println("nMLC: " + nMLC);
 			klabelsetGen.printKLabelsets();
-			
+
 			//Set number of threads
 			ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 			

@@ -99,6 +99,11 @@ public class Listener implements IAlgorithmListener, IConfigure
 	String bestTreeFilename = "reports/bestTree.csv";
 	
 	/**
+	 * File with the size of the k-labelsets in the initial pool
+	 */
+	String kSizesPoolFilename = "reports/kSizesPool.csv";
+	
+	/**
 	 * File with the classification report over the test set (best individual)
 	 */
 	String classificationReportFilename = "reports/testResults.csv";
@@ -175,6 +180,8 @@ public class Listener implements IAlgorithmListener, IConfigure
 		BufferedWriter worstWriter = null;
 		BufferedWriter pcWriter = null;
 		BufferedWriter pmWriter = null;
+		BufferedWriter ksizesPoolWriter = null;
+		BufferedWriter ksizesEnsembleWriter = null;
 		BufferedWriter classificationReportWriter = null;
 		
 		try {
@@ -216,6 +223,11 @@ public class Listener implements IAlgorithmListener, IConfigure
 			pmWriter = new BufferedWriter(new FileWriter(pmFilename, true));
 			pmWriter.write("\n");
 			pmWriter.close();
+			
+			ksizesPoolWriter = new BufferedWriter(new FileWriter(kSizesPoolFilename, true));
+			ksizesPoolWriter.write(Arrays.toString(((Alg) event.getAlgorithm()).klabelsetGen.kSizes));
+			ksizesPoolWriter.write("\n");
+			ksizesPoolWriter.close();
 		} catch(Exception e) {
 			e.printStackTrace();
 			System.exit(-1);

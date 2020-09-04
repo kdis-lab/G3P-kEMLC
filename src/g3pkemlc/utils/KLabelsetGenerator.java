@@ -38,6 +38,11 @@ public class KLabelsetGenerator {
 	public int nLabelsets;
 	
 	/**
+	 * Number of klabelsets of each size
+	 */
+	public int [] kSizes;
+	
+	/**
 	 * True if the generation of the k-labelsets is biased by the relationship among labels.
 	 * If false, they are randomly generated.
 	 */
@@ -96,6 +101,7 @@ public class KLabelsetGenerator {
 		this.nLabelsets = 0;
 		this.phiBiased = false;
 		this.klabelsets = new ArrayList<KLabelset>();
+		this.kSizes = new int[maxK - minK + 1];
 	}
 	
 	/**
@@ -277,6 +283,7 @@ public class KLabelsetGenerator {
 			//Add if it is new
 			if(! klabelsets.contains(nextKLabelset)) {
 				klabelsets.add(nextKLabelset);
+				this.kSizes[currentK - minK]++;
 				currentVotes += nextKLabelset.klabelset.size();
 				for(int l : nextKLabelset.klabelset) {
 					appearances[l]++;
@@ -330,7 +337,13 @@ public class KLabelsetGenerator {
 		s += "avgK: " + df.format(avgSizeKLabelsets()) + "; ";
 		
 		//Add nLabels
-		s +=  "nL: " + nLabels + "; ";
+		s +=  "nL: " + nLabels + "\n";
+		
+		s += "k sizes in pool: ";
+		for(int i=0; i<kSizes.length; i++) {
+			s += kSizes[i] + ", ";
+		}
+		s += "\n";
 		
 		//Add k-labelsets
 		s += "--> " + klabelsets.toString();
