@@ -320,6 +320,8 @@ public class KLabelsetGenerator {
 			}
 		}
 		
+		System.out.println("Votes in pool: " + Arrays.toString(appearances));
+		
 		return this.klabelsets;
 	}
 	
