@@ -2,23 +2,21 @@
   <process algorithm-type="g3pkemlc.Alg">
     <rand-gen-factory multi="true">
       <rand-gen-factory seed="10"/>
-      <rand-gen-factory seed="20"/>
     </rand-gen-factory>
 
     <population-size>50</population-size>
     <max-of-generations>200</max-of-generations>
 
-    <v>10</v>
+    <v>20</v>
+
+    <min-k>3</min-k>
+    <max-k>5</max-k>
+    <k-mode>gaussian</k-mode>
 
     <dataset multi="true">
       <dataset>
         <train-dataset>data/Emotions/Emotions-train1.arff</train-dataset>
         <test-dataset>data/Emotions/Emotions-test1.arff</test-dataset>
-        <xml>data/Emotions/Emotions.xml</xml>
-      </dataset>
-      <dataset>
-        <train-dataset>data/Emotions/Emotions-train2.arff</train-dataset>
-        <test-dataset>data/Emotions/Emotions-test2.arff</test-dataset>
         <xml>data/Emotions/Emotions.xml</xml>
       </dataset>
     </dataset>	
