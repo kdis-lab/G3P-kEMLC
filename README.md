@@ -1,15 +1,15 @@
 # AG3P-kEMLC: Auto-adaptive G3P algorithm to build Ensembles of Multi-Label Classifiers
 
 AG3P-kEMLC is an auto-adaptive Grammar-Guided Genetic Programming (G3P) algorithm designed to build Ensembles of Multi-Label Classifiers (EMLCs) in a tree-shape.
-The method auto-adapts some of the parameters of the G3P algorithm (such as the crossover and mutation probabilities) in order to reduce the selection of hyperparameters and to adapt to each specific case, as well as it has a stop condition based on the fitness of the best individual to avoid a high runtime and to avoid overfitting.
+The method auto-adapts some of the parameters of the G3P algorithm (such as the crossover and mutation probabilities) in order to reduce the selection of hyperparameters and to adapt to each specific case. Besides, it has a stop condition based on the non-improvement in fitness of the best individual to avoid a high runtime and to prevent overfitting.
 Given the use of G3P, a tree-shaped ensemble is obtained, where at each node of the tree the prediction of children nodes are combined, and the leaves are the base multi-label classifiers.
 Each of the base classifiers is focused on a subset of the labels of size _k_ (a.k.a. _k_-labelset). Unlike in other EMLCs, G3P-kEMLC is able to deal with base classifiers focused on _k_-labelsets of different size. Three different options to select the size of the _k_-labelsets are provided: 1) fixed value of _k_; 2) variable value of _k_ between _kMin_ and _kMax_, where all values have the same probability; and 3) variable value of _k_ between _kMin_ and _kMax_, where smaller _k_ values have more probability to be selected than higher values.
 More information about this algorithm will be provided soon.
 
 In this repository we provide the code of AG3P-kEMLC, distributed under the GPLv3 License. AG3P-kEMLC has been implemented using JCLEC [[Ven08]](#Ven08), Mulan [[Tso11]](#Tso11), and Weka [[Hal09]](#Hal09) libraries. Besides, the latest release [(v 3.0)](https://github.com/kdis-lab/G3P-kEMLC/releases/tag/v3.0) provides the executable jar to execute AG3P-kEMLC.
-The code and executable of a previous version, presented in IEEE-CEC [Moy20]](#Moy20) is available in the [(v 2.0 release)](https://github.com/kdis-lab/G3P-kEMLC/releases/tag/v2.0).
+The code and executable of a previous version, presented in IEEE-CEC [Moy20](#Moy20) is available in the [v 2.0 release](https://github.com/kdis-lab/G3P-kEMLC/releases/tag/v2.0).
 
-To execute AG3P-kEMLC, the following command have to be executed:
+To execute AG3P-kEMLC, the following command should be executed:
 ```sh
 java -jar AG3P-kEMLC.jar configFile.xml
 ```
@@ -40,7 +40,7 @@ The configuration file is a xml file including the parameters of the G3P algorit
     <mutator mut-prob="0.5" />
      
     <min-k>3</min-k>
-    <max-k>7</max-k>
+    <max-k>7</max-k> <!-- numLabels / 2 -->
     <k-mode>gaussian</k-mode>
 
     <max-depth>3</max-depth>
@@ -104,19 +104,18 @@ The configuration file is a xml file including the parameters of the G3P algorit
 
 Then, several more characteristics of the evolutionary algorithm could be modified in the configuration file, but they are just optional and default values for them are given if they are not included in this file:
 * The parents selector is determined with the ```<parents-selector>``` tag. By default, tournament selection of size 2 is used. In order to change the size of the tournament selection, the sub-tag ```<tournament-size>``` could be used.
-* By default, internal nodes in the tree combine the predictions as bipartitions of their children. However, confidences could be used instead of bipartitions at all nodes with the tag ```<use-confidences>``` to _true_ value.
 
 *Emotions* [[Tso08]](#Tso08) and *Yeast* [[Eli01]](#Eli01) multi-label datasets have been included in the repository as example; however, a wide variety of dataset are available at the [KDIS Research Group Repository](http://www.uco.es/kdis/mllresources/). Further, the example configuration files (*Emotions.xml* and *Yeast.xml*) are also provided.
 
 ### References
-<a name="Eli01"></a>**[Eli01]** A. Elisseeff and J. Weston. (2001). A kernel method for multi-labelled classification. In Advances in Neural Information Processing Systems, 14, 681–687.
+<a name="Eli01"></a>**[Eli01]** A. Elisseeff and J. Weston. (2001). A kernel method for multi-labelled classification. In _Advances in Neural Information Processing Systems_, 14, 681–687.
 
-<a name="Hal09"></a>**[Hal09]** M. Hall, E. Frank, G. Holmes, B. Pfahringer, P. Reutemann, and I. H. Witten. (2009). The WEKA data mining software: an update. ACM SIGKDD explorations newsletter, 11(1), 10-18.
+<a name="Hal09"></a>**[Hal09]** M. Hall, E. Frank, G. Holmes, B. Pfahringer, P. Reutemann, and I. H. Witten. (2009). The WEKA data mining software: an update. _ACM SIGKDD explorations newsletter_, 11(1), 10-18.
 
-<a name="Moy20"></a>**[Moy20]** J.M. Moyano, E. Gibaja, K. Cios, S. Ventura. (2020). Tree-shaped ensemble of multi-label classifiers using grammar-guided genetic programming, In 2020 IEEE Congress on Evolutionary Computation, CEC 2020. 1-8.
+<a name="Moy20"></a>**[Moy20]** J.M. Moyano, E. Gibaja, K. Cios, S. Ventura. (2020). Tree-shaped ensemble of multi-label classifiers using grammar-guided genetic programming, In _2020 IEEE Congress on Evolutionary Computation, CEC 2020_. 1-8.
 
-<a name="Tso08"></a>**[Tso08]** G. Tsoumakas, I. Katakis, and I. Vlahavas. (2008). Effective and Efficient Multilabel Classification in Domains with Large Number of Labels. In ECML/PKDD 2008 Workshop on Mining Multidimensional Data (MMD’08), 53-59.
+<a name="Tso08"></a>**[Tso08]** G. Tsoumakas, I. Katakis, and I. Vlahavas. (2008). Effective and Efficient Multilabel Classification in Domains with Large Number of Labels. In _ECML/PKDD 2008 Workshop on Mining Multidimensional Data (MMD’08)_, 53-59.
 
-<a name="Tso11"></a>**[Tso11]** G. Tsoumakas, E. Spyromitros-Xioufis, J. Vilcek, and I. Vlahavas. (2011). Mulan: A java library for multi-label learning. Journal of Machine Learning Research, 12, 2411-2414.
+<a name="Tso11"></a>**[Tso11]** G. Tsoumakas, E. Spyromitros-Xioufis, J. Vilcek, and I. Vlahavas. (2011). Mulan: A java library for multi-label learning. _Journal of Machine Learning Research_, 12, 2411-2414.
 
-<a name="Ven08"></a>**[Ven08]** S. Ventura, C. Romero, A. Zafra, J. A. Delgado, and C. Hervás. (2008). JCLEC: a Java framework for evolutionary computation. Soft Computing, 12(4), 381-392.
+<a name="Ven08"></a>**[Ven08]** S. Ventura, C. Romero, A. Zafra, J. A. Delgado, and C. Hervás. (2008). JCLEC: a Java framework for evolutionary computation. _Soft Computing_, 12(4), 381-392.
