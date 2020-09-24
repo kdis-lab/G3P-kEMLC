@@ -7,7 +7,7 @@ Each of the base classifiers is focused on a subset of the labels of size _k_ (a
 More information about this algorithm will be provided soon.
 
 In this repository we provide the code of AG3P-kEMLC, distributed under the GPLv3 License. AG3P-kEMLC has been implemented using JCLEC [[Ven08]](#Ven08), Mulan [[Tso11]](#Tso11), and Weka [[Hal09]](#Hal09) libraries. Besides, the latest release [(v 3.0)](https://github.com/kdis-lab/G3P-kEMLC/releases/tag/v3.0) provides the executable jar to execute AG3P-kEMLC.
-The code and executable of a previous version, presented in IEEE-CEC [Moy20](#Moy20) is available in the [v 2.0 release](https://github.com/kdis-lab/G3P-kEMLC/releases/tag/v2.0).
+The code and executable of a previous version, presented in IEEE-CEC [[Moy20]](#Moy20) is available in the [v 2.0 release](https://github.com/kdis-lab/G3P-kEMLC/releases/tag/v2.0).
 
 To execute AG3P-kEMLC, the following command should be executed:
 ```sh
